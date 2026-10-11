@@ -1,0 +1,9 @@
+{
+  "short_name": "LawyerDiary",
+  "name": "Lawyer Diary Workspace",
+  "start_url": "/",
+  "background_color": "#2563eb",
+  "theme_color": "#2563eb",
+  "display": "standalone",
+  "orientation": "portrait"
+}

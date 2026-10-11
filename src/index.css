@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@media print {
+    /* Hide everything except the main dashboard content */
+    body * {
+        visibility: hidden;
+    }
+
+    #printable-cause-list, #printable-cause-list * {
+        visibility: visible;
+    }
+
+    #printable-cause-list {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+
+    /* Hide action buttons like "Remind" or "Delete" in print view */
+    .no-print {
+        display: none !important;
+    }
+}
