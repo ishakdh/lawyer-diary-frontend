@@ -441,6 +441,37 @@ export default function Dashboard({ onLogout }) {
         loadCasesFromLocal();
     };
 
+    const handleSendReminder = (caseItem) => {
+        if (!caseItem.client_phone) {
+            alert('No phone number saved for this client.');
+            return;
+        }
+
+        // Clean the phone number (ensure country code)
+        let phone = caseItem.client_phone.replace(/[^0-9]/g, '');
+        if (phone.startsWith('0')) phone = '88' + phone;
+
+        // Format the date and generate the message
+        const hearingDate = caseItem.next_hearing_date
+            ? new Date(caseItem.next_hearing_date).toLocaleDateString('en-GB')
+            : 'an upcoming date';
+
+        const message = `Greeting from ${lawyerName}!\n\nThis is a reminder for your case (${caseItem.case_number}) at ${caseItem.court_name || 'Court'}. Your next hearing is scheduled for ${hearingDate}. Please be present on the scheduled date at 9:00 AM.`;
+
+        const encodedMessage = encodeURIComponent(message);
+
+        // Let the lawyer choose their preferred method
+        const useWhatsApp = window.confirm(`Send reminder to ${caseItem.client_name}?\n\nPress [OK] to open WhatsApp\nPress [Cancel] to open standard SMS`);
+
+        if (useWhatsApp) {
+            // Opens WhatsApp app with pre-filled text
+            window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+        } else {
+            // Opens native SMS app with pre-filled text
+            window.open(`sms:+${phone}?body=${encodedMessage}`, '_self');
+        }
+    };
+
     // --- 5. SMART PREV/NEXT LOGIC (DAY VS MONTH) ---
     const handlePrev = () => {
         setCurrentFilterDate(prev => {
@@ -770,6 +801,13 @@ export default function Dashboard({ onLogout }) {
                                                                 {c.next_hearing_date ? 'Hearing' : 'Add Date'}
                                                             </button>
 
+                                                            <button
+                                                                onClick={() => handleSendReminder(c)}
+                                                                className="bg-pink-100 text-pink-700 hover:bg-pink-200 px-3 py-1.5 rounded-md text-xs font-semibold transition"
+                                                            >
+                                                                Reminder
+                                                            </button>
+
                                                             <button onClick={() => setActiveNotesCase(c)} className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-md text-xs font-semibold transition">
                                                                 Notes
                                                             </button>
@@ -840,6 +878,12 @@ export default function Dashboard({ onLogout }) {
                                                     <>
                                                         <button onClick={() => { setHearingModalCase(c); setHearingNoteText(''); setNextHearingDateInput(''); }} className={`px-2 py-1.5 rounded-lg font-bold text-[11px] grow text-center border ${c.next_hearing_date ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                                                             {c.next_hearing_date ? 'Hearing' : 'Add Date'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleSendReminder(c)}
+                                                            className="bg-pink-50 text-pink-700 border border-pink-200 px-2 py-1.5 rounded-lg font-bold text-[11px] grow text-center"
+                                                        >
+                                                            Reminder
                                                         </button>
                                                         <button onClick={() => setActiveNotesCase(c)} className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1.5 rounded-lg font-bold text-[11px] grow text-center">Notes</button>
                                                         <button onClick={() => openTransferModal(c)} className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1.5 rounded-lg font-bold text-[11px] grow text-center">Transfer</button>

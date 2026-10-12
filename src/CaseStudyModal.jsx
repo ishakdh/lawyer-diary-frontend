@@ -14,7 +14,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
     // Audio states
     const [isRecording, setIsRecording] = useState(false);
-    const [pendingAudio, setPendingAudio] = useState(null); // Holds audio until user clicks Send
+    const [pendingAudio, setPendingAudio] = useState(null);
 
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -72,10 +72,10 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                 if (data.charged && onBalanceDeducted) onBalanceDeducted();
                 fetchQuota();
             } else {
-                setError(data.message || 'Analysis failed.');
+                setError(data.message || 'Analysis failed. Please try again.');
             }
         } catch (err) {
-            setError('Server connection error. Please try again.');
+            setError('Server connection error. Please check your internet and try again.');
         } finally {
             setAnalyzing(false);
         }
@@ -116,15 +116,13 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
-            setPendingAudio(reader.result); // Hold the audio in state, don't send yet
+            setPendingAudio(reader.result);
         };
     };
 
     const handleTextSubmit = (e) => {
         e.preventDefault();
-        // Allow send if either text OR audio is present
         if (!chatInput.trim() && !pendingAudio) return;
-
         sendMessageToAI(chatInput, pendingAudio);
     };
 
@@ -135,9 +133,14 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             isAudio: !!audioBase64
         };
 
+        // If starting directly from text/voice without an image, transition the UI instantly
+        if (!result) {
+            setResult("GENERAL CASE DISCUSSION\n\nYou started a discussion without a document. You can continue asking legal questions below.");
+        }
+
         setChatMessages(prev => [...prev, userMsg]);
         setChatInput('');
-        setPendingAudio(null); // Clear the held audio
+        setPendingAudio(null);
         setChatLoading(true);
 
         try {
@@ -239,9 +242,62 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 </div>
                             )}
 
+                            {error && (
+                                <div className="bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-sm font-bold text-center">
+                                    {error}
+                                </div>
+                            )}
+
                             <button onClick={handleAnalyze} disabled={analyzing || images.length === 0} className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm transition shadow disabled:opacity-50 flex items-center justify-center gap-2">
                                 {analyzing ? <span>⚙️ AI analyzing document...</span> : <span>Analyze Case Document ({images.length} Page{images.length > 1 ? 's' : ''})</span>}
                             </button>
+
+                            {/* --- NEW: CHAT INPUT DIRECTLY ON HOME SCREEN --- */}
+                            <div className="mt-4 pt-4 border-t border-purple-100">
+                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2 text-center">
+                                    Or Discuss A Case Without Document
+                                </label>
+                                <div className="flex gap-2 shrink-0 items-center">
+                                    <button
+                                        type="button"
+                                        onClick={isRecording ? stopRecording : startRecording}
+                                        className={`p-2.5 rounded-xl text-white font-bold transition shadow-sm ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
+                                        title={isRecording ? "Click to Stop Recording" : "Click to Record Voice"}
+                                        disabled={chatLoading || pendingAudio !== null}
+                                    >
+                                        {isRecording ? '⏹️' : '🎙️'}
+                                    </button>
+
+                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-center bg-white border border-slate-200 rounded-xl shadow-sm p-1">
+                                        <input
+                                            type="text"
+                                            value={pendingAudio ? "🎤 Voice message ready to send..." : chatInput}
+                                            onChange={e => setChatInput(e.target.value)}
+                                            placeholder={isRecording ? "Recording audio..." : "Message AI Assistant directly..."}
+                                            className="flex-1 p-2 text-sm outline-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium"
+                                            disabled={chatLoading || isRecording || pendingAudio !== null}
+                                        />
+
+                                        {pendingAudio && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setPendingAudio(null)}
+                                                className="px-2 text-red-500 hover:text-red-700 text-lg font-bold"
+                                            >
+                                                &times;
+                                            </button>
+                                        )}
+
+                                        <button
+                                            type="submit"
+                                            disabled={(!chatInput.trim() && !pendingAudio) || chatLoading || isRecording}
+                                            className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50"
+                                        >
+                                            Send
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </>
                     )}
 
@@ -265,14 +321,9 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 </h4>
 
                                 <div className="flex-1 overflow-y-auto space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-3 mb-3 shadow-inner h-[250px] md:h-auto">
-                                    {chatMessages.length === 0 && (
-                                        <p className="text-xs text-slate-400 text-center mt-6">
-                                            Need more details? Ask or send a voice note about specific sections.
-                                        </p>
-                                    )}
                                     {chatMessages.map((msg, i) => (
                                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`p-2.5 rounded-xl max-w-[90%] text-xs ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-sm'}`}>
+                                            <div className={`p-2.5 rounded-xl max-w-[90%] text-xs whitespace-pre-wrap ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-sm leading-relaxed'}`}>
                                                 {msg.text}
                                             </div>
                                         </div>
@@ -292,7 +343,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                         onClick={isRecording ? stopRecording : startRecording}
                                         className={`p-2.5 rounded-xl text-white font-bold transition shadow-sm ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
                                         title={isRecording ? "Click to Stop Recording" : "Click to Record Voice"}
-                                        disabled={chatLoading || pendingAudio !== null} // Disable mic if audio already waiting
+                                        disabled={chatLoading || pendingAudio !== null}
                                     >
                                         {isRecording ? '⏹️' : '🎙️'}
                                     </button>
@@ -307,13 +358,11 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                             disabled={chatLoading || isRecording || pendingAudio !== null}
                                         />
 
-                                        {/* Show delete button only if there is pending audio */}
                                         {pendingAudio && (
                                             <button
                                                 type="button"
                                                 onClick={() => setPendingAudio(null)}
                                                 className="px-2 text-red-500 hover:text-red-700 text-lg font-bold"
-                                                title="Delete Voice Recording"
                                             >
                                                 &times;
                                             </button>
@@ -321,7 +370,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
                                         <button
                                             type="submit"
-                                            // Disable if BOTH inputs are empty, or if recording/loading
                                             disabled={(!chatInput.trim() && !pendingAudio) || chatLoading || isRecording}
                                             className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50"
                                         >
