@@ -8,6 +8,9 @@ const parseJwt = (token) => {
 };
 
 export default function App() {
+  // Define the API Base URL from your Coolify environment variables
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+
   const token = localStorage.getItem('lawyer_token');
   const [isLoggedIn, setIsLoggedIn] = useState(!!token);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -50,7 +53,7 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, password }),
@@ -78,7 +81,7 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register-request', {
+      const res = await fetch(`${API_BASE}/api/auth/register-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +107,7 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register-verify', {
+      const res = await fetch(`${API_BASE}/api/auth/register-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, otp_code: otp }),
@@ -127,7 +130,7 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/forgot-password-request', {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone }),
@@ -144,7 +147,7 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/forgot-password-verify', {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, otp_code: otp }),
@@ -161,7 +164,7 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, new_password: newPassword }),
