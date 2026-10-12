@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 
+// --- ADDED API BASE FOR LIVE DEPLOYMENT ---
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export default function MasterAdminDashboard({ onLogout }) {
     const [activeTab, setActiveTab] = useState('finance');
     const [stats, setStats] = useState({ total_users: 0, active_users: 0, inactive_users: 0, platform_wallet_volume: '0.00' });
@@ -77,7 +80,7 @@ export default function MasterAdminDashboard({ onLogout }) {
     const loadPromos = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/admin/promos', { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(`${API_BASE}/api/admin/promos`, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
             if (data.success) setPromoCodes(data.promos);
         } catch(e){}
@@ -87,7 +90,7 @@ export default function MasterAdminDashboard({ onLogout }) {
     const loadAdminData = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/admin/data', { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(`${API_BASE}/api/admin/data`, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
             if (data.success) {
                 setStats(data.stats);
@@ -102,7 +105,7 @@ export default function MasterAdminDashboard({ onLogout }) {
     const loadFinanceData = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            let url = '/api/admin/finance';
+            let url = `${API_BASE}/api/admin/finance`;
             if (dateFilter.start && dateFilter.end) { url += `?start_date=${dateFilter.start}&end_date=${dateFilter.end}`; }
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await res.json();
@@ -113,7 +116,7 @@ export default function MasterAdminDashboard({ onLogout }) {
     const handleOpenViewModal = async (userId) => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch(`/api/admin/users/${userId}/details`, {
+            const res = await fetch(`${API_BASE}/api/admin/users/${userId}/details`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const result = await res.json();
@@ -132,7 +135,7 @@ export default function MasterAdminDashboard({ onLogout }) {
         e.preventDefault();
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch(`/api/admin/admins/${selectedAdmin.id}`, {
+            const res = await fetch(`${API_BASE}/api/admin/admins/${selectedAdmin.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(editAdminForm)
@@ -154,7 +157,7 @@ export default function MasterAdminDashboard({ onLogout }) {
         e.preventDefault();
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/admin/settings', {
+            const res = await fetch(`${API_BASE}/api/admin/settings`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ subscription_tiers: JSON.stringify(feeTiers) })
             });
@@ -166,7 +169,7 @@ export default function MasterAdminDashboard({ onLogout }) {
         e.preventDefault();
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/admin/settings', {
+            const res = await fetch(`${API_BASE}/api/admin/settings`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ payment_gateways: JSON.stringify(gateways) })
             });
@@ -178,7 +181,7 @@ export default function MasterAdminDashboard({ onLogout }) {
         e.preventDefault();
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/admin/create-sub-admin', {
+            const res = await fetch(`${API_BASE}/api/admin/create-sub-admin`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(newAdmin)
             });
             const data = await res.json();
@@ -201,7 +204,7 @@ export default function MasterAdminDashboard({ onLogout }) {
     const handleMirrorUser = async (userId) => {
         try {
             const adminToken = localStorage.getItem('lawyer_token');
-            const res = await fetch(`/api/admin/impersonate/${userId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` }});
+            const res = await fetch(`${API_BASE}/api/admin/impersonate/${userId}`, { method: 'POST', headers: { 'Authorization': `Bearer ${adminToken}` }});
             const data = await res.json();
             if (data.success) {
                 localStorage.setItem('admin_token_backup', adminToken);
@@ -212,13 +215,13 @@ export default function MasterAdminDashboard({ onLogout }) {
     };
 
     const toggleActiveStatus = async (userId) => {
-        await fetch(`/api/admin/users/${userId}/toggle-status`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` }});
+        await fetch(`${API_BASE}/api/admin/users/${userId}/toggle-status`, { method: 'PATCH', headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` }});
         loadAdminData();
     };
 
     const deleteUser = async (userId) => {
         if (!window.confirm('Are you sure you want to delete this account?')) return;
-        await fetch(`/api/admin/users/${userId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` }});
+        await fetch(`${API_BASE}/api/admin/users/${userId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` }});
         loadAdminData();
     };
 
@@ -354,7 +357,6 @@ export default function MasterAdminDashboard({ onLogout }) {
                                     <label className="flex items-center gap-2 mb-2 cursor-pointer text-sm text-slate-300">
                                         <input type="checkbox" checked={newAdmin.permissions.finance_ledger} onChange={e => setNewAdmin({...newAdmin, permissions: {...newAdmin.permissions, finance_ledger: e.target.checked}})} className="w-4 h-4 rounded bg-slate-900 border-slate-600 text-blue-600" />
                                         1. Financial Ledger
-
                                     </label>
                                     <label className="flex items-center gap-2 mb-2 cursor-pointer text-sm text-slate-300">
                                         <input type="checkbox" checked={newAdmin.permissions.user_management} onChange={e => setNewAdmin({...newAdmin, permissions: {...newAdmin.permissions, user_management: e.target.checked}})} className="w-4 h-4 rounded bg-slate-900 border-slate-600 text-blue-600" />
@@ -621,7 +623,7 @@ export default function MasterAdminDashboard({ onLogout }) {
                             <form onSubmit={async (e) => {
                                 e.preventDefault();
                                 const token = localStorage.getItem('lawyer_token');
-                                await fetch('/api/admin/settings', {
+                                await fetch(`${API_BASE}/api/admin/settings`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                     body: JSON.stringify({
@@ -659,7 +661,7 @@ export default function MasterAdminDashboard({ onLogout }) {
                             <form onSubmit={async (e) => {
                                 e.preventDefault();
                                 const token = localStorage.getItem('lawyer_token');
-                                const res = await fetch('/api/admin/promos', {
+                                const res = await fetch(`${API_BASE}/api/admin/promos`, {
                                     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                     body: JSON.stringify(newPromo)
                                 });
@@ -695,7 +697,7 @@ export default function MasterAdminDashboard({ onLogout }) {
                                             <span className="text-sm font-bold text-white bg-slate-800 px-3 py-1 rounded-lg border border-slate-600">+{promo.free_months} Months</span>
                                             <button onClick={async () => {
                                                 if(!window.confirm('Delete this code?')) return;
-                                                await fetch(`/api/admin/promos/${promo.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` } });
+                                                await fetch(`${API_BASE}/api/admin/promos/${promo.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` } });
                                                 loadPromos();
                                             }} className="text-rose-400 hover:text-rose-300 font-bold text-xl">&times;</button>
                                         </div>
