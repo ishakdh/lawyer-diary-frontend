@@ -16,7 +16,7 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
     const fetchGateways = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            // FIX: Add /payment prefix (or verify how your server.js mounts paymentRoutes)
+            // FIX: Ensure it matches your backend payment route path
             const res = await fetch('/api/payment/gateways', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
