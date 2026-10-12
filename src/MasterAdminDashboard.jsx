@@ -37,6 +37,13 @@ export default function MasterAdminDashboard({ onLogout }) {
         default_free_trial_months: '1', referral_reward_referrer_months: '1', referral_reward_referee_months: '1'
     });
 
+    // Manual Recharge State
+    const [showRechargeModal, setShowRechargeModal] = useState(false);
+    const [rechargeSearch, setRechargeSearch] = useState('');
+    const [selectedRechargeUser, setSelectedRechargeUser] = useState(null);
+    const [rechargeAmount, setRechargeAmount] = useState('');
+    const [isRecharging, setIsRecharging] = useState(false);
+
     const [loading, setLoading] = useState(true);
     const [actionMsg, setActionMsg] = useState('');
     const [promoCodes, setPromoCodes] = useState([]);
@@ -225,6 +232,42 @@ export default function MasterAdminDashboard({ onLogout }) {
         loadAdminData();
     };
 
+    const handleManualRecharge = async (e) => {
+        e.preventDefault();
+        if (!selectedRechargeUser || !rechargeAmount) return;
+
+        if (!window.confirm(`Are you sure you want to recharge ৳${rechargeAmount} to ${selectedRechargeUser.full_name}?`)) return;
+
+        setIsRecharging(true);
+        try {
+            const token = localStorage.getItem('lawyer_token');
+            const res = await fetch(`${API_BASE}/api/admin/manual-recharge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    target_user_id: selectedRechargeUser.id,
+                    amount: parseFloat(rechargeAmount)
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showSuccess(data.message);
+                setShowRechargeModal(false);
+                setRechargeSearch('');
+                setSelectedRechargeUser(null);
+                setRechargeAmount('');
+                loadFinanceData(); // Refresh the ledger immediately
+            } else {
+                alert(data.message);
+            }
+        } catch (err) {
+            alert('Error processing recharge.');
+        } finally {
+            setIsRecharging(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100 font-sans">
             <nav className="bg-slate-800 border-b border-slate-700 px-8 py-4 flex justify-between items-center shadow-lg">
@@ -241,7 +284,7 @@ export default function MasterAdminDashboard({ onLogout }) {
                 </div>
             </nav>
 
-            <div className="max-w-7xl mx-auto p-8 space-y-6">
+            <div className="w-full mx-auto p-8 space-y-6">
                 {actionMsg && (
                     <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl text-sm font-medium">
                         {actionMsg}
@@ -274,6 +317,7 @@ export default function MasterAdminDashboard({ onLogout }) {
                     <button onClick={() => setActiveTab('plans')} className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${activeTab === 'plans' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>💳 Subscription Plans</button>
                     <button onClick={() => setActiveTab('gateways')} className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${activeTab === 'gateways' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>🏦 Payment Gateways</button>
                     <button onClick={() => setActiveTab('referrals')} className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${activeTab === 'referrals' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>🎁 Referral Matrix</button>
+                    <button onClick={() => setShowRechargeModal(true)} className="px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 ml-2">💰 Manual Recharge</button>
                 </div>
 
                 {/* TAB: FINANCIAL LEDGER */}
@@ -846,6 +890,82 @@ export default function MasterAdminDashboard({ onLogout }) {
                                 <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2.5 rounded-lg transition shadow mt-4">Save Changes</button>
                             </form>
                         )}
+                    </div>
+                </div>
+            )}
+            {/* --- Manual Recharge Pop-up Modal --- */}
+            {showRechargeModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+                        <button onClick={() => { setShowRechargeModal(false); setSelectedRechargeUser(null); setRechargeSearch(''); }} className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl font-bold">✕</button>
+
+                        <h3 className="text-xl font-bold mb-4 text-white border-b border-slate-700 pb-2">Manual Recharge</h3>
+
+                        <form onSubmit={handleManualRecharge} className="space-y-4">
+                            {!selectedRechargeUser ? (
+                                <div>
+                                    <label className="block text-xs text-slate-400 mb-2">Search Lawyer by Name or Phone</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Type to search..."
+                                        value={rechargeSearch}
+                                        onChange={e => setRechargeSearch(e.target.value)}
+                                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white outline-none focus:border-emerald-500 text-sm mb-3"
+                                    />
+
+                                    {/* Search Results Dropdown */}
+                                    {rechargeSearch.trim().length > 1 && (
+                                        <div className="bg-slate-900 border border-slate-600 rounded-lg max-h-48 overflow-y-auto">
+                                            {users.filter(u => !u.is_admin && (u.full_name?.toLowerCase().includes(rechargeSearch.toLowerCase()) || u.phone_number?.includes(rechargeSearch))).map(u => (
+                                                <div
+                                                    key={u.id}
+                                                    onClick={() => setSelectedRechargeUser(u)}
+                                                    className="p-3 border-b border-slate-700 hover:bg-slate-750 cursor-pointer transition"
+                                                >
+                                                    <div className="font-bold text-white text-sm">{u.full_name}</div>
+                                                    <div className="text-xs text-slate-400">{u.phone_number}</div>
+                                                </div>
+                                            ))}
+                                            {users.filter(u => !u.is_admin && (u.full_name?.toLowerCase().includes(rechargeSearch.toLowerCase()) || u.phone_number?.includes(rechargeSearch))).length === 0 && (
+                                                <div className="p-3 text-slate-500 text-sm text-center">No lawyer found.</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="bg-slate-900 p-4 rounded-xl border border-emerald-500/30 flex justify-between items-center">
+                                        <div>
+                                            <span className="block text-[10px] uppercase text-emerald-500 font-bold mb-1">Selected Lawyer</span>
+                                            <div className="font-bold text-white">{selectedRechargeUser.full_name}</div>
+                                            <div className="text-xs text-slate-400">{selectedRechargeUser.phone_number}</div>
+                                        </div>
+                                        <button type="button" onClick={() => setSelectedRechargeUser(null)} className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition">Change</button>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1">Recharge Amount (৳)</label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="1"
+                                            value={rechargeAmount}
+                                            onChange={e => setRechargeAmount(e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white outline-none focus:border-emerald-500 text-lg font-bold"
+                                            placeholder="Enter amount..."
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={isRecharging}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-3 rounded-lg transition shadow disabled:opacity-50 mt-2"
+                                    >
+                                        {isRecharging ? 'Processing...' : `Confirm Recharge ৳${rechargeAmount || 0}`}
+                                    </button>
+                                </div>
+                            )}
+                        </form>
                     </div>
                 </div>
             )}
