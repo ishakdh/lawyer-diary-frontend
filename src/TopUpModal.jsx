@@ -17,7 +17,8 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
         try {
             const token = localStorage.getItem('lawyer_token');
             // FIX: Match the actual route prefix in your backend
-            const res = await fetch('/api/payment/gateways', {
+            const API_BASE = import.meta.env.VITE_API_URL || '';
+            const res = await fetch(`${API_BASE}/api/payment/gateways`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
