@@ -16,21 +16,29 @@ export default function ReferralModal({ onClose }) {
     const fetchReferralStats = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/wallet/referral-stats', {
+            // FIX: Added the critical API_BASE_URL fallback so it hits your actual backend server
+            const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
+
+            const res = await fetch(`${API_BASE}/api/wallet/referral-stats`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             if (data.success) {
-                setReferralData(data);
+                setReferralData({
+                    referral_code: data.referral_code || 'N/A',
+                    total_referred: data.total_referred || 0,
+                    shareable_link: data.shareable_link || ''
+                });
             }
         } catch (err) {
-            console.error('Failed to load referral stats.');
+            console.error('Failed to load referral stats.', err);
         } finally {
             setLoading(false);
         }
     };
 
     const copyToClipboard = () => {
+        if (!referralData.shareable_link) return;
         navigator.clipboard.writeText(referralData.shareable_link);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -53,7 +61,7 @@ export default function ReferralModal({ onClose }) {
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-6 text-slate-400 text-sm">Loading referral data...</div>
+                        <div className="text-center py-6 text-slate-400 text-sm animate-pulse">Loading referral data...</div>
                     ) : (
                         <div className="space-y-4">
                             <div>
@@ -74,7 +82,8 @@ export default function ReferralModal({ onClose }) {
                                     />
                                     <button
                                         onClick={copyToClipboard}
-                                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shrink-0"
+                                        disabled={!referralData.shareable_link}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 disabled:opacity-50"
                                     >
                                         {copied ? 'Copied!' : 'Copy'}
                                     </button>
