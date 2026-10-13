@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Register({ onNavigateToLogin }) {
     const [step, setStep] = useState(1); // Step 1: Form, Step 2: OTP Verification
@@ -17,6 +17,19 @@ export default function Register({ onNavigateToLogin }) {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
+    // --- NEW: Auto-fill referral code from URL on load ---
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+
+        if (refCode) {
+            setFormData(prevData => ({
+                ...prevData,
+                referred_by_code: refCode
+            }));
+        }
+    }, []);
+
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData({
@@ -32,11 +45,14 @@ export default function Register({ onNavigateToLogin }) {
         setError('');
 
         try {
-            // Note: We will need to create this endpoint on the backend next!
-            const response = await fetch('/api/auth/send-otp', {
+            // FIX: Added API_BASE so the frontend connects to the backend correctly
+            const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
+
+            // NOTE: Ensure this matches your backend route (e.g. /register-request vs /send-otp)
+            const response = await fetch(`${API_BASE}/api/auth/register-request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: formData.phone, email: formData.email })
+                body: JSON.stringify(formData) // Sent full form data instead of just phone/email
             });
             const data = await response.json();
 
@@ -46,7 +62,7 @@ export default function Register({ onNavigateToLogin }) {
                 setError(data.message || 'Failed to send OTP.');
             }
         } catch (err) {
-            setError('Server error requesting OTP.');
+            setError('Server error requesting OTP. Please check your connection.');
         }
         setLoading(false);
     };
@@ -58,10 +74,13 @@ export default function Register({ onNavigateToLogin }) {
         setError('');
 
         try {
-            const response = await fetch('/api/auth/register', {
+            const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
+
+            // NOTE: Ensure this matches your backend route
+            const response = await fetch(`${API_BASE}/api/auth/register-verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, otp }) // Send form data AND the OTP
+                body: JSON.stringify({ phone: formData.phone, otp_code: otp })
             });
             const data = await response.json();
 
@@ -140,7 +159,7 @@ export default function Register({ onNavigateToLogin }) {
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Referral Code (Optional)</label>
                                     <p className="text-xs text-slate-500 mb-2">Have a code? Enter it to get an extra month free!</p>
-                                    <input name="referred_by_code" type="text" placeholder="e.g. A1B2C3" value={formData.referred_by_code} onChange={handleInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none uppercase" />
+                                    <input name="referred_by_code" type="text" placeholder="e.g. LAW-A1B2C3" value={formData.referred_by_code} onChange={handleInputChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none uppercase" />
                                 </div>
 
                                 <div className="flex items-start mt-4">
