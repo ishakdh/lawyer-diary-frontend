@@ -57,6 +57,7 @@ export default function Dashboard({ onLogout }) {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
 
     const initialFormState = {
         case_number: '', section: '', client_name: '', client_phone: '', opponent_name: '', court_name: '', next_hearing_date: ''
@@ -75,12 +76,10 @@ export default function Dashboard({ onLogout }) {
 
         for (const item of pendingActions) {
             try {
-                const response = await fetch(item.endpoint, {
+
+                const response = await fetch(`${API_BASE}${item.endpoint}`, {
                     method: item.method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(item.payload)
                 });
 
@@ -143,7 +142,7 @@ export default function Dashboard({ onLogout }) {
     const fetchCases = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            const response = await fetch('/api/cases', {
+            const response = await fetch(`${API_BASE}/api/cases`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -206,7 +205,7 @@ export default function Dashboard({ onLogout }) {
     const fetchWallet = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            const response = await fetch('/api/wallet', {
+            const response = await fetch(`${API_BASE}/api/wallet`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
@@ -258,7 +257,7 @@ export default function Dashboard({ onLogout }) {
         setIsSubmitting(true);
 
         const token = localStorage.getItem('lawyer_token');
-        const url = editingId ? `/api/cases/${editingId}` : '/api/cases';
+        const url = editingId ? `${API_BASE}/api/cases/${editingId}` : `${API_BASE}/api/cases`;
         const method = editingId ? 'PUT' : 'POST';
 
         if (isOnline) {
@@ -295,7 +294,7 @@ export default function Dashboard({ onLogout }) {
     const handleCompleteHearingSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        const endpoint = `/api/cases/${hearingModalCase.id}/hearing`;
+        const endpoint = `${API_BASE}/api/cases/${hearingModalCase.id}/hearing`;
         const payload = { hearing_note: hearingNoteText, next_hearing_date: nextHearingDateInput || null };
 
         if (isOnline) {
@@ -340,7 +339,7 @@ export default function Dashboard({ onLogout }) {
     const handleTransferSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        const endpoint = `/api/cases/${transferModalCase.id}/transfer`;
+        const endpoint = `${API_BASE}/api/cases/${transferModalCase.id}/transfer`;
 
         if (isOnline) {
             try {
@@ -383,7 +382,7 @@ export default function Dashboard({ onLogout }) {
 
     const handleToggleClose = async (caseItem, reason = '') => {
         setIsSubmitting(true);
-        const endpoint = `/api/cases/${caseItem.id}/toggle-close`;
+        const endpoint = `${API_BASE}/api/cases/${caseItem.id}/toggle-close`;
         const payload = { close_reason: reason };
 
         if (isOnline) {
@@ -425,7 +424,10 @@ export default function Dashboard({ onLogout }) {
         if (isOnline) {
             try {
                 const token = localStorage.getItem('lawyer_token');
-                const response = await fetch(`/api/cases/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                const response = await fetch(`${API_BASE}/api/cases/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 if ((await response.json()).success) fetchCases();
             } catch (err) {
                 await deleteOffline(id);
