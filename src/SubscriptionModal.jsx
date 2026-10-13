@@ -6,6 +6,7 @@ export default function SubscriptionModal({ onClose, cases }) {
 
     // Calculate unique active clients from the Dashboard cases state
     const activeClientCount = useMemo(() => {
+        if (!cases || !Array.isArray(cases)) return 0;
         const uniqueClients = new Set(cases.filter(c => !c.is_closed).map(c => c.client_name.trim().toLowerCase()));
         return uniqueClients.size;
     }, [cases]);
@@ -13,17 +14,45 @@ export default function SubscriptionModal({ onClose, cases }) {
     useEffect(() => {
         const fetchWallet = async () => {
             try {
-                const res = await fetch('/api/wallet', { headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` }});
+                const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
+                const res = await fetch(`${API_BASE}/api/wallet`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('lawyer_token')}` }
+                });
                 const result = await res.json();
-                if (result.success) setData(result);
-            } catch (err) { console.error(err); } finally { setLoading(false); }
+                if (result.success) {
+                    setData(result);
+                } else {
+                    setData(null);
+                }
+            } catch (err) {
+                console.error("Wallet fetch error:", err);
+                setData(null);
+            } finally {
+                setLoading(false);
+            }
         };
         fetchWallet();
     }, []);
 
-    if (loading) return null;
+    if (loading) return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-xl shadow-xl">
+                <p className="font-bold text-slate-500 animate-pulse">Loading Subscription Data...</p>
+            </div>
+        </div>
+    );
 
-    // Determine current tier
+    // Fallback UI if data failed to load
+    if (!data) return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-xl shadow-xl">
+                <p className="font-bold text-red-500 mb-4">Failed to load subscription data.</p>
+                <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold">Close</button>
+            </div>
+        </div>
+    );
+
+    // Determine current tier safely
     const currentTier = data.subscription_tiers?.find(tier => {
         const match = tier.name.match(/(\d+)\s*-\s*(\d+)/);
         if (match) {
@@ -32,7 +61,7 @@ export default function SubscriptionModal({ onClose, cases }) {
             return activeClientCount >= min && activeClientCount <= max;
         }
         return false;
-    }) || data.subscription_tiers?.[data.subscription_tiers.length - 1] || { name: 'Unknown', monthly: '0' };
+    }) || data.subscription_tiers?.[(data.subscription_tiers?.length || 1) - 1] || { name: 'Unknown', monthly: '0' };
 
     const isExpired = new Date(data.trial_ends_at) < new Date();
 
@@ -75,7 +104,7 @@ export default function SubscriptionModal({ onClose, cases }) {
                     {/* Payment History */}
                     <div>
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b pb-2 mb-3">Recharge History</h4>
-                        {data.transactions.length === 0 ? (
+                        {(!data.transactions || data.transactions.length === 0) ? (
                             <p className="text-sm text-slate-500 text-center py-4">No payment history available.</p>
                         ) : (
                             <div className="space-y-3">
