@@ -26,7 +26,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const fetchQuota = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/case-study/quota', {
+            const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
+            const res = await fetch(`${API_BASE}/api/case-study/quota`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -61,7 +62,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/case-study/analyze', {
+            const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
+            const res = await fetch(`${API_BASE}/api/case-study/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ images, language })
@@ -84,7 +86,13 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+            // This compression is mandatory to bypass the 503 error
+            mediaRecorderRef.current = new MediaRecorder(stream, {
+                mimeType: 'audio/webm',
+                audioBitsPerSecond: 16000 // 16kbps makes the file tiny
+            });
+
             audioChunksRef.current = [];
 
             mediaRecorderRef.current.ondataavailable = (e) => {
@@ -145,7 +153,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/case-study/chat', {
+            const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
+            const res = await fetch(`${API_BASE}/api/case-study/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
