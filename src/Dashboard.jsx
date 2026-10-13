@@ -64,7 +64,8 @@ export default function Dashboard({ onLogout }) {
     };
     const [formData, setFormData] = useState(initialFormState);
 
-    // --- 1. THE AUTO-SYNC ENGINE ---
+
+    // --- 1. THE FIXED AUTO-SYNC ENGINE ---
     const runSyncEngine = useCallback(async () => {
         if (!navigator.onLine) return;
 
@@ -76,24 +77,34 @@ export default function Dashboard({ onLogout }) {
 
         for (const item of pendingActions) {
             try {
+                // Ensure endpoint is correctly formed with API_BASE
+                const targetUrl = item.endpoint.startsWith('http') ? item.endpoint : `${API_BASE}${item.endpoint}`;
 
-                const response = await fetch(`${API_BASE}${item.endpoint}`, {
+                const response = await fetch(targetUrl, {
                     method: item.method,
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify(item.payload)
                 });
 
                 if (response.ok) {
+                    // Successfully synced to server, remove from local queue
                     await db.syncQueue.delete(item.id);
+                } else {
+                    console.warn(`Sync failed for item ${item.id}, server returned status ${response.status}`);
                 }
             } catch (err) {
-                console.warn('Sync delayed, waiting for better connection...', item.id);
-                break;
+                console.warn('Sync network error for item:', item.id, err);
+                // Continue loop or break depending on network availability
             }
         }
+
         setSyncing(false);
+        // Refresh cases from live server to populate DB
         fetchCases();
-    }, []);
+    }, [API_BASE]);
 
     // --- 2. NETWORK LISTENERS & 12-HOUR TIMER ---
     useEffect(() => {
