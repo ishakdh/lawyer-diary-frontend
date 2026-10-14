@@ -764,7 +764,7 @@ export default function Dashboard({ onLogout }) {
                                     : 'bg-amber-500 hover:bg-amber-600 text-white'
                             }`}
                         >
-                            <span>📅 Add Hearing Date</span>
+                            <span>Add Hearing Date</span>
                             {unassignedCount > 0 && (
                                 <span className="bg-white text-amber-700 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold leading-none">
                                     {unassignedCount}
