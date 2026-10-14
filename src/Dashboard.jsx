@@ -34,6 +34,7 @@ export default function Dashboard({ onLogout }) {
     // Filter States
     const [currentFilterDate, setCurrentFilterDate] = useState(null);
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
 
     // Hearing Modal State
     const [hearingModalCase, setHearingModalCase] = useState(null);
@@ -487,6 +488,7 @@ export default function Dashboard({ onLogout }) {
 
     // --- 5. SMART PREV/NEXT LOGIC (DAY VS MONTH) ---
     const handlePrev = () => {
+        setShowUnassignedOnly(false);
         setCurrentFilterDate(prev => {
             const newDate = prev ? new Date(prev) : new Date();
             if (viewMode === 'calendar') {
@@ -500,6 +502,7 @@ export default function Dashboard({ onLogout }) {
     };
 
     const handleNext = () => {
+        setShowUnassignedOnly(false);
         setCurrentFilterDate(prev => {
             const newDate = prev ? new Date(prev) : new Date();
             if (viewMode === 'calendar') {
@@ -513,11 +516,20 @@ export default function Dashboard({ onLogout }) {
     };
 
     const handleToday = () => {
+        setShowUnassignedOnly(false);
         setCurrentFilterDate(new Date());
         setDateRange({ start: '', end: '' });
     };
 
+    // Count active cases with no hearing date assigned
+    const unassignedCount = cases.filter(c => !c.next_hearing_date && !c.is_closed).length;
+
     const filteredCases = cases.filter(c => {
+        // When "Add Hearing Date" filter is active, only show open cases without a hearing date
+        if (showUnassignedOnly) {
+            return !c.next_hearing_date && !c.is_closed;
+        }
+
         if (!c.next_hearing_date) return currentFilterDate === null && dateRange.start === '';
 
         const caseDateStr = new Date(c.next_hearing_date).toISOString().split('T')[0];
@@ -653,8 +665,8 @@ export default function Dashboard({ onLogout }) {
 
                         {/* All Cases Button */}
                         <button
-                            onClick={() => { setViewMode('list'); setCurrentFilterDate(null); setDateRange({start: '', end: ''}); }}
-                            className={`px-3 py-1.5 md:px-4 rounded-md text-xs md:text-sm font-medium transition ${!currentFilterDate && !dateRange.start && viewMode === 'list' ? 'bg-slate-800 shadow text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                            onClick={() => { setViewMode('list'); setCurrentFilterDate(null); setDateRange({start: '', end: ''}); setShowUnassignedOnly(false); }}
+                            className={`px-3 py-1.5 md:px-4 rounded-md text-xs md:text-sm font-medium transition ${!currentFilterDate && !dateRange.start && !showUnassignedOnly && viewMode === 'list' ? 'bg-slate-800 shadow text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                         >
                             All Cases
                         </button>
@@ -677,7 +689,7 @@ export default function Dashboard({ onLogout }) {
                             </button>
 
                             <button
-                                onClick={() => setViewMode('calendar')}
+                                onClick={() => { setViewMode('calendar'); setShowUnassignedOnly(false); }}
                                 className={`px-2.5 py-1.5 md:px-4 md:py-2 font-semibold transition border-l border-blue-600 ${viewMode === 'calendar' ? 'bg-blue-700 text-white' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
                             >
                                 🗓️ Calendar
@@ -685,8 +697,8 @@ export default function Dashboard({ onLogout }) {
                         </div>
 
                         {/* Clear Filter Indicator */}
-                        {currentFilterDate && viewMode === 'list' && (
-                            <button onClick={() => setCurrentFilterDate(null)} className="px-2 py-1.5 text-xs font-bold transition bg-slate-100 text-slate-500 hover:bg-slate-200 rounded">
+                        {(currentFilterDate || showUnassignedOnly) && viewMode === 'list' && (
+                            <button onClick={() => { setCurrentFilterDate(null); setShowUnassignedOnly(false); }} className="px-2 py-1.5 text-xs font-bold transition bg-slate-100 text-slate-500 hover:bg-slate-200 rounded">
                                 ✕ Clear
                             </button>
                         )}
@@ -695,7 +707,30 @@ export default function Dashboard({ onLogout }) {
                         <button onClick={openNewCaseModal} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-bold shadow transition ml-auto md:ml-0">
                             + Add Case
                         </button>
-                        {/* NEW: AI Case Study Button */}
+
+                        {/* NEW: Add Hearing Date Filter Button */}
+                        <button
+                            onClick={() => {
+                                setViewMode('list');
+                                setCurrentFilterDate(null);
+                                setDateRange({ start: '', end: '' });
+                                setShowUnassignedOnly(!showUnassignedOnly);
+                            }}
+                            className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-bold shadow transition flex items-center gap-1.5 ${
+                                showUnassignedOnly
+                                    ? 'bg-amber-600 text-white ring-2 ring-amber-300'
+                                    : 'bg-amber-500 hover:bg-amber-600 text-white'
+                            }`}
+                        >
+                            <span>📅 Add Hearing Date</span>
+                            {unassignedCount > 0 && (
+                                <span className="bg-white text-amber-700 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold leading-none">
+                                    {unassignedCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* AI Case Study Button */}
                         <button
                             onClick={() => setShowCaseStudyModal(true)}
                             className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-bold shadow transition flex items-center gap-1.5"
@@ -713,14 +748,14 @@ export default function Dashboard({ onLogout }) {
                             <input
                                 type="date"
                                 value={dateRange.start}
-                                onChange={(e) => { setDateRange({...dateRange, start: e.target.value}); setCurrentFilterDate(null); setViewMode('list'); }}
+                                onChange={(e) => { setDateRange({...dateRange, start: e.target.value}); setCurrentFilterDate(null); setShowUnassignedOnly(false); setViewMode('list'); }}
                                 className="flex-1 md:flex-none text-[11px] md:text-xs p-1.5 rounded border border-slate-200 outline-none"
                             />
                             <span className="text-[10px] text-slate-500 font-bold px-1">TO</span>
                             <input
                                 type="date"
                                 value={dateRange.end}
-                                onChange={(e) => { setDateRange({...dateRange, end: e.target.value}); setCurrentFilterDate(null); setViewMode('list'); }}
+                                onChange={(e) => { setDateRange({...dateRange, end: e.target.value}); setCurrentFilterDate(null); setShowUnassignedOnly(false); setViewMode('list'); }}
                                 className="flex-1 md:flex-none text-[11px] md:text-xs p-1.5 rounded border border-slate-200 outline-none"
                             />
                             {(dateRange.start || dateRange.end) && (
@@ -738,7 +773,13 @@ export default function Dashboard({ onLogout }) {
                     ) : (
                         viewMode === 'list' ? (
                             <>
-                                {filteredCases.length === 0 && <div className="p-8 text-center text-slate-500 bg-white rounded-xl shadow-sm border border-slate-200">No cases found matching criteria.</div>}
+                                {filteredCases.length === 0 && (
+                                    <div className="p-8 text-center text-slate-500 bg-white rounded-xl shadow-sm border border-slate-200">
+                                        {showUnassignedOnly
+                                            ? '🎉 All active cases have a hearing date assigned!'
+                                            : 'No cases found matching criteria.'}
+                                    </div>
+                                )}
 
                                 {/* --- DESKTOP VIEW: WIDE TABLE (Hidden on Mobile) --- */}
                                 <div id="printable-cause-list" className="hidden md:block bg-white rounded-xl shadow overflow-hidden border border-slate-200">
