@@ -89,8 +89,9 @@ export default function App() {
           phone,
           password,
           address,
-          auto_sms_enabled: autoSms,
-          referred_by_code: referredByCode // <--- Added Promo/Referral Code to payload
+          auto_sms_enabled: true,
+          agreed_to_terms: agreedToTerms,
+          referred_by_code: referredByCode
         }),
       });
       const data = await res.json();
