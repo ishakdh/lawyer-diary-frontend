@@ -8,13 +8,14 @@ export default function CaseNotesModal({ caseItem, onClose, onRefresh }) {
         setIsSaving(true);
         try {
             const token = localStorage.getItem('lawyer_token');
-            const response = await fetch(`/api/cases/${caseItem.id}`, {
+            // FIX: Add '/notes' here
+            const response = await fetch(`/api/cases/${caseItem.id}/notes`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ ...caseItem, notes })
+                body: JSON.stringify({ notes }) // Only send the notes string
             });
 
             const data = await response.json();
