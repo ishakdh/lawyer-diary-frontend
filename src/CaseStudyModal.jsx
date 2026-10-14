@@ -38,16 +38,56 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         } catch (err) { console.error('Failed to load quota', err); }
     };
 
-    const handleFiles = (e) => {
+    const handleFiles = async (e) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
 
-        files.forEach(file => {
+        setAnalyzing(true); // Optional: show loading indicator while compressing
+        try {
+            for (const file of files) {
+                const compressedImage = await compressImage(file);
+                setImages(prev => [...prev, compressedImage]);
+            }
+        } catch (err) {
+            console.error('Image compression error:', err);
+        } finally {
+            setAnalyzing(false);
+        }
+    };
+
+    // Helper to resize and compress images before uploading
+    const compressImage = (file) => {
+        return new Promise((resolve) => {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setImages(prev => [...prev, { base64: reader.result, mimeType: file.type }]);
-            };
             reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Max dimension constraint (1200px)
+                    const MAX_DIMENSION = 1200;
+                    if (width > height && width > MAX_DIMENSION) {
+                        height = Math.round((height *= MAX_DIMENSION / width));
+                        width = MAX_DIMENSION;
+                    } else if (height > MAX_DIMENSION) {
+                        width = Math.round((width *= MAX_DIMENSION / height));
+                        height = MAX_DIMENSION;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Compress to JPEG with 0.8 quality
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    resolve({ base64: compressedDataUrl, mimeType: 'image/jpeg' });
+                };
+            };
         });
     };
 
