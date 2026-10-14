@@ -8,7 +8,7 @@ export default function PaymentWebhookAdmin() {
     const fetchLogs = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('admin_token'); // Or lawyer_token if super admin
+            const token = localStorage.getItem('lawyer_token') || localStorage.getItem('admin_token');
             const API_BASE = import.meta.env.VITE_API_URL || '';
 
             const res = await fetch(`${API_BASE}/api/admin/payment-webhooks`, {
