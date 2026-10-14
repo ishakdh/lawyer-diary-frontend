@@ -16,6 +16,9 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const [isRecording, setIsRecording] = useState(false);
     const [pendingAudio, setPendingAudio] = useState(null);
 
+    // NEW: State for camera vs gallery popup choice menu
+    const [showPickerMenu, setShowPickerMenu] = useState(false);
+
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
 
@@ -87,10 +90,9 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            // This compression is mandatory to bypass the 503 error
             mediaRecorderRef.current = new MediaRecorder(stream, {
                 mimeType: 'audio/webm',
-                audioBitsPerSecond: 16000 // 16kbps makes the file tiny
+                audioBitsPerSecond: 16000
             });
 
             audioChunksRef.current = [];
@@ -141,7 +143,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             isAudio: !!audioBase64
         };
 
-        // If starting directly from text/voice without an image, transition the UI instantly
         if (!result) {
             setResult("GENERAL CASE DISCUSSION\n\nYou started a discussion without a document. You can continue asking legal questions below.");
         }
@@ -233,12 +234,75 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">
                                     Upload or Capture Document Photo(s)
                                 </label>
-                                <label className="border-2 border-dashed border-purple-300 hover:border-purple-500 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-purple-50/30 transition text-center">
+
+                                {/* Clickable box that opens the camera/gallery choice popup */}
+                                <div
+                                    onClick={() => setShowPickerMenu(true)}
+                                    className="border-2 border-dashed border-purple-300 hover:border-purple-500 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-purple-50/30 transition text-center"
+                                >
                                     <span className="text-3xl mb-1">📸</span>
                                     <span className="text-xs font-bold text-purple-700">Tap to Take Photo or Choose from Gallery</span>
-                                    <input type="file" accept="image/*" multiple capture="environment" onChange={handleFiles} className="hidden" />
-                                </label>
+                                </div>
+
+                                {/* Hidden Input 1: Direct Camera Capture */}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    id="cameraInput"
+                                    onChange={handleFiles}
+                                    className="hidden"
+                                />
+
+                                {/* Hidden Input 2: Gallery Upload with Multi-select Support */}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    id="galleryInput"
+                                    onChange={handleFiles}
+                                    className="hidden"
+                                />
                             </div>
+
+                            {/* Popup Action Menu */}
+                            {showPickerMenu && (
+                                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5 flex flex-col gap-3">
+                                        <h3 className="text-base font-bold text-slate-800 text-center mb-1">Select Image Source</h3>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowPickerMenu(false);
+                                                document.getElementById('cameraInput').click();
+                                            }}
+                                            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-xl shadow transition flex items-center justify-center gap-2"
+                                        >
+                                            <span>📷</span> Take Photo from Camera
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowPickerMenu(false);
+                                                document.getElementById('galleryInput').click();
+                                            }}
+                                            className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl transition flex items-center justify-center gap-2"
+                                        >
+                                            <span>🖼️</span> Upload from Gallery (Multiple)
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPickerMenu(false)}
+                                            className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-700 mt-1"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {images.length > 0 && (
                                 <div className="flex flex-wrap gap-2 pt-1">
@@ -261,7 +325,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 {analyzing ? <span>⚙️ AI analyzing document...</span> : <span>Analyze Case Document ({images.length} Page{images.length > 1 ? 's' : ''})</span>}
                             </button>
 
-                            {/* --- NEW: CHAT INPUT DIRECTLY ON HOME SCREEN --- */}
+                            {/* --- CHAT INPUT DIRECTLY ON HOME SCREEN --- */}
                             <div className="mt-4 pt-4 border-t border-purple-100">
                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2 text-center">
                                     Or Discuss A Case Without Document
