@@ -50,6 +50,7 @@ export default function Dashboard({ onLogout }) {
 
     // Close Case Modal State
     const [closeModalCase, setCloseModalCase] = useState(null);
+    const [reminderModalCase, setReminderModalCase] = useState(null);
     const [closeReasonText, setCloseReasonText] = useState('');
 
     // Wallet, Security & Identity State
@@ -492,30 +493,34 @@ export default function Dashboard({ onLogout }) {
             alert('No phone number saved for this client.');
             return;
         }
+        // Open the custom modal instead of window.confirm
+        setReminderModalCase(caseItem);
+    };
+
+    const executeReminder = (platform) => {
+        if (!reminderModalCase) return;
 
         // Clean the phone number (ensure country code)
-        let phone = caseItem.client_phone.replace(/[^0-9]/g, '');
+        let phone = reminderModalCase.client_phone.replace(/[^0-9]/g, '');
         if (phone.startsWith('0')) phone = '88' + phone;
 
         // Format the date and generate the message
-        const hearingDate = caseItem.next_hearing_date
-            ? new Date(caseItem.next_hearing_date).toLocaleDateString('en-GB')
+        const hearingDate = reminderModalCase.next_hearing_date
+            ? new Date(reminderModalCase.next_hearing_date).toLocaleDateString('en-GB')
             : 'an upcoming date';
 
-        const message = `Greeting from ${lawyerName}!\n\nThis is a reminder for your case (${caseItem.case_number}) at ${caseItem.court_name || 'Court'}. Your next hearing is scheduled for ${hearingDate}. Please be present on the scheduled date at 9:00 AM.`;
+        const message = `Greeting from ${lawyerName}!\n\nThis is a reminder for your case (${reminderModalCase.case_number}) at ${reminderModalCase.court_name || 'Court'}. Your next hearing is scheduled for ${hearingDate}. Please be present on the scheduled date at 9:00 AM.`;
 
         const encodedMessage = encodeURIComponent(message);
 
-        // Let the lawyer choose their preferred method
-        const useWhatsApp = window.confirm(`Send reminder to ${caseItem.client_name}?\n\nPress [OK] to open WhatsApp\nPress [Cancel] to open standard SMS`);
-
-        if (useWhatsApp) {
-            // Opens WhatsApp app with pre-filled text
+        if (platform === 'whatsapp') {
             window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
-        } else {
-            // Opens native SMS app with pre-filled text
+        } else if (platform === 'sms') {
             window.open(`sms:+${phone}?body=${encodedMessage}`, '_self');
         }
+
+        // Close the modal after sending
+        setReminderModalCase(null);
     };
 
     // --- 5. SMART PREV/NEXT LOGIC (DAY VS MONTH) ---
@@ -1280,6 +1285,44 @@ export default function Dashboard({ onLogout }) {
                                 className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3.5 rounded-xl shadow-lg transition duration-200"
                             >
                                 Okay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Custom Send Reminder Modal */}
+            {reminderModalCase && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+                    <div className="bg-white rounded-t-2xl md:rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200">
+                        <div className="px-5 py-4 border-b border-slate-200 bg-slate-900 text-white flex justify-between items-center">
+                            <h3 className="text-sm font-bold">Send Reminder</h3>
+                            <button onClick={() => setReminderModalCase(null)} className="text-slate-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
+                        </div>
+
+                        <div className="p-5 flex flex-col gap-3">
+                            <p className="text-sm text-slate-700 font-medium mb-2 text-center">
+                                Send reminder to <span className="font-bold text-slate-900">{reminderModalCase.client_name}</span>?
+                            </p>
+
+                            <button
+                                onClick={() => executeReminder('whatsapp')}
+                                className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow transition flex items-center justify-center gap-2"
+                            >
+                                <span>💬</span> 1. Send via WhatsApp
+                            </button>
+
+                            <button
+                                onClick={() => executeReminder('sms')}
+                                className="w-full py-3.5 px-4 bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm rounded-xl shadow transition flex items-center justify-center gap-2"
+                            >
+                                <span>📱</span> 2. Send via SMS
+                            </button>
+
+                            <button
+                                onClick={() => setReminderModalCase(null)}
+                                className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition mt-2"
+                            >
+                                3. Close
                             </button>
                         </div>
                     </div>
