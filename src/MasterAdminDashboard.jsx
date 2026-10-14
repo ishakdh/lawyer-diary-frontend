@@ -417,7 +417,14 @@ export default function MasterAdminDashboard({ onLogout }) {
                                                 <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-750/50 transition">
                                                     <td className="p-4 text-slate-300">{formatDateTime(tx.created_at)}</td>
                                                     <td className="p-4"><div className="font-medium text-white">{tx.full_name}</div><div className="text-xs text-slate-400">{tx.phone_number}</div></td>
-                                                    <td className="p-4"><span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs">{tx.gateway_used}</span> <span className="text-xs text-slate-500 ml-2">{tx.transaction_id}</span></td>
+                                                    <td className="p-4">
+                                                    <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">
+                                                        {tx.gateway_used || tx.transaction_type || 'TOPUP'}
+                                                    </span>
+                                                                                                        <span className="text-xs text-slate-400 ml-2 font-medium">
+                                                        {tx.transaction_id || tx.description}
+                                                    </span>
+                                                    </td>
                                                     <td className="p-4 text-right font-bold text-emerald-400">৳{Number(tx.amount).toFixed(2)}</td>
                                                 </tr>
                                             ))}
