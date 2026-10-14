@@ -288,7 +288,6 @@ export default function MasterAdminDashboard({ onLogout }) {
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-3 py-1 rounded-full">Active Master Admin</span>
-                    <button onClick={onLogout} className="bg-red-600/80 hover:bg-red-600 px-4 py-2 rounded-lg text-sm transition shadow">Admin Logout</button>
                 </div>
             </nav>
 
@@ -321,14 +320,23 @@ export default function MasterAdminDashboard({ onLogout }) {
                         <button onClick={() => setActiveTab('referrals')} className={menuBtnStyle('referrals')}>
                             <span className="text-lg">🎁</span> Referral Matrix
                         </button>
-                    </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-700">
+                        {/* ✨ MOVED: Manual Recharge is now right under Referral Matrix ✨ */}
                         <button
                             onClick={() => setShowRechargeModal(true)}
-                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold transition flex items-center gap-3 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 shadow-sm"
+                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition flex items-center gap-3 text-emerald-400 hover:bg-slate-800 hover:text-emerald-300"
                         >
                             <span className="text-lg">💰</span> Manual Recharge
+                        </button>
+                    </div>
+
+                    {/* ✨ MOVED: Admin Logout is now pinned to the bottom left ✨ */}
+                    <div className="mt-6 pt-4 border-t border-slate-700">
+                        <button
+                            onClick={onLogout}
+                            className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold transition flex items-center gap-3 bg-red-600/10 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 shadow-sm"
+                        >
+                            <span className="text-lg">🚪</span> Admin Logout
                         </button>
                     </div>
                 </aside>
