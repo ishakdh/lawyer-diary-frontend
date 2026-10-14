@@ -16,7 +16,6 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
     const fetchGateways = async () => {
         try {
             const token = localStorage.getItem('lawyer_token');
-            // FIX: Match the actual route prefix in your backend
             const API_BASE = import.meta.env.VITE_API_URL || '';
             const res = await fetch(`${API_BASE}/api/payment/gateways`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -39,37 +38,38 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
         }
     };
 
+    // --- UPDATED: Now connects to /api/wallet/verify-manual ---
     const handleClaim = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
             const token = localStorage.getItem('lawyer_token');
-            const res = await fetch('/api/wallet/topup', {
+            const API_BASE = import.meta.env.VITE_API_URL || '';
+
+            const res = await fetch(`${API_BASE}/api/wallet/verify-manual`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    gateway_id: selectedGateway.id,
-                    provider: selectedGateway.provider,
-                    account_type: selectedGateway.account_type,
-                    account_number: selectedGateway.account_number,
-                    sender_number: senderNumber,
+                    senderNumber: senderNumber,
                     amount: amount,
-                    trx_id: trxId
+                    trxId: trxId,
+                    gateway: selectedGateway.provider // e.g., 'bKash' or 'Nagad'
                 })
             });
+
             const data = await res.json();
             if (data.success) {
-                alert('Top-up claim submitted successfully!');
+                alert(data.message || 'Top-up verified successfully!');
                 onSuccessfulTopUp();
                 onClose();
             } else {
-                alert(data.message || 'Failed to submit top-up request.');
+                alert(data.message || 'Verification failed. Please check your inputs.');
             }
         } catch (err) {
-            alert('Server error while submitting top-up.');
+            alert('Server error while verifying top-up.');
         }
         setLoading(false);
     };
@@ -117,19 +117,16 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
                                             }`}
                                         >
                                             <div className="flex items-center gap-4">
-
-                                                {/* --- NEW LOGO RENDERER WITH SMART FALLBACK --- */}
                                                 <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 shadow-sm bg-white shrink-0 p-1.5 flex items-center justify-center relative">
                                                     <img
                                                         src={logoSrc}
                                                         alt={g.provider}
                                                         className="w-full h-full object-contain absolute inset-0 m-auto p-1.5 z-10"
                                                         onError={(e) => {
-                                                            e.target.style.display = 'none'; // Hide broken image
-                                                            e.target.nextSibling.style.display = 'flex'; // Show text fallback
+                                                            e.target.style.display = 'none';
+                                                            e.target.nextSibling.style.display = 'flex';
                                                         }}
                                                     />
-                                                    {/* Fallback Text Circle (Hidden by default, shown if image fails) */}
                                                     <div className="hidden w-full h-full items-center justify-center text-white font-black text-xs rounded-full absolute inset-0 z-0"
                                                          style={{ backgroundColor: isB ? '#e2136e' : '#ec1c24' }}>
                                                         {isB ? 'bK' : 'Ng'}
