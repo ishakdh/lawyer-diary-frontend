@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import PaymentWebhookAdmin from './PaymentWebhookAdmin';
+import PaymentWebhookAdmin from './components/PaymentWebhookAdmin';
 
 // --- ADDED API BASE FOR LIVE DEPLOYMENT ---
 const API_BASE = import.meta.env.VITE_API_URL || '';
