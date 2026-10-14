@@ -30,7 +30,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [address, setAddress] = useState('');
-  const [autoSms, setAutoSms] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
@@ -197,6 +197,7 @@ export default function App() {
             <p className="text-slate-500 text-sm mt-1">
               {view === 'signin' && 'Sign In to Your Workspace'}
               {view === 'signup' && 'Create New Advocate Account'}
+              {view === 'terms' && 'Legal Agreement & Terms'}
               {view === 'signup_verify' && 'Verify WhatsApp OTP'}
               {(view === 'forgot_phone' || view === 'forgot_verify' || view === 'forgot_reset') && 'Reset Password'}
             </p>
@@ -258,9 +259,25 @@ export default function App() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
-                  <input type="checkbox" id="autosms" checked={autoSms} onChange={(e) => setAutoSms(e.target.checked)} className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
-                  <label htmlFor="autosms" className="text-sm text-slate-700">Enable Automatic SMS Reminders</label>
+                <div className="flex items-start gap-2 pt-1">
+                  <input
+                      type="checkbox"
+                      id="agreedToTerms"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      className="w-4 h-4 mt-1 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer shrink-0"
+                      required
+                  />
+                  <label htmlFor="agreedToTerms" className="text-sm text-slate-700 leading-snug">
+                    I have read and agree to the{' '}
+                    <button
+                        type="button"
+                        onClick={() => { setView('terms'); setError(''); }}
+                        className="text-blue-600 font-bold hover:underline hover:text-blue-800"
+                    >
+                      Terms of Service & Data Security Agreement
+                    </button>.
+                  </label>
                 </div>
                 <button type="submit" disabled={loading} className="w-full bg-green-600 text-white font-medium py-2.5 rounded-lg hover:bg-green-700 transition disabled:opacity-50 mt-2">
                   {loading ? 'Sending OTP...' : 'Register Account'}
@@ -269,6 +286,27 @@ export default function App() {
                   <button type="button" onClick={() => { setView('signin'); setError(''); }} className="text-sm text-blue-600 hover:underline font-medium">Already have an account? Sign In</button>
                 </div>
               </form>
+          )}
+
+          {/* TERMS AND AGREEMENT VIEW */}
+          {view === 'terms' && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="max-h-64 overflow-y-auto p-4 border border-slate-200 rounded-lg bg-slate-50 space-y-3 text-xs leading-relaxed text-slate-700 shadow-inner">
+                  <h3 className="font-black text-sm text-slate-900 mb-2 border-b pb-2 uppercase tracking-wide">Lawyer Diary – Terms of Service</h3>
+                  <p><strong>1. Data Security & Risks:</strong> We employ industry-standard security measures and regular backups. However, by using the Platform, you acknowledge that Lawyer Diary is not legally or financially liable for data breaches, data loss, or system corruption caused by malicious cyberattacks or catastrophic hardware failures.</p>
+                  <p><strong>2. Service Availability:</strong> Lawyer Diary is provided on an "as-is" basis. We are not responsible for any professional, legal, or financial losses you may incur due to unexpected server crashes or network disruptions.</p>
+                  <p><strong>3. User Responsibility for Data Backups:</strong> Lawyer Diary operates as a day-to-day case management utility, not a permanent archiving service. You agree to maintain independent backups of all critical case documents.</p>
+                  <p><strong>4. Limitation of Liability:</strong> In no event shall Lawyer Diary be liable for any indirect, incidental, or special damages arising out of your use of the Platform.</p>
+                  <p><strong>5. Account Suspension:</strong> We reserve the right to suspend or terminate accounts in the event of non-payment or violation of these terms.</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setView('signup')}
+                    className="w-full bg-slate-800 text-white font-bold tracking-wider py-3 rounded-lg hover:bg-slate-900 transition shadow-md"
+                >
+                  ← Back to Registration
+                </button>
+              </div>
           )}
 
           {/* SIGN UP VERIFY VIEW */}
