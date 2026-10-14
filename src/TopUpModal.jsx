@@ -77,7 +77,7 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
     const isBkash = selectedGateway?.provider?.toLowerCase().includes('bkash');
     const brandColor = isBkash ? 'bg-[#e2136e]' : 'bg-[#ec1c24]';
     const brandName = isBkash ? 'bkash' : 'nagad';
-    const isMerchant = selectedGateway?.account_type?.toLowerCase().includes('merchant');
+    const isMerchant = (selectedGateway?.account_type || selectedGateway?.type || '').toLowerCase().includes('merchant');
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -135,8 +135,8 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
 
                                                 <div>
                                                     <h4 className="font-bold text-sm text-slate-800">{g.provider}</h4>
-                                                    <p className="text-xs font-semibold text-slate-600 mt-0.5">{g.account_type}</p>
-                                                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">{g.account_number}</p>
+                                                    <p className="text-xs font-semibold text-slate-600 mt-0.5">{g.account_type || g.type}</p>
+                                                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">{g.account_number || g.number}</p>
                                                 </div>
                                             </div>
                                             <span className="text-slate-400 font-bold text-base pr-2">➔</span>
@@ -162,7 +162,7 @@ export default function TopUpModal({ onClose, onSuccessfulTopUp }) {
                         <div className="bg-slate-50 px-6 py-3 border-b border-slate-100 flex justify-between items-center text-xs">
                             <div>
                                 <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider block">Target Number</span>
-                                <span className="font-mono font-bold text-slate-800 text-sm">{selectedGateway.account_number}</span>
+                                <span className="font-mono font-bold text-slate-800 text-sm">{selectedGateway.account_number || selectedGateway.number}</span>
                             </div>
                             <div className="text-right">
                                 <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider block">Method</span>
