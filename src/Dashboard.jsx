@@ -777,7 +777,7 @@ export default function Dashboard({ onLogout }) {
                             onClick={() => setShowCaseStudyModal(true)}
                             className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-bold shadow transition flex items-center gap-1.5"
                         >
-                            <span>🪄 Case Study</span>
+                            <span>Case Study</span>
                         </button>
 
                         {/* Export (Hidden on mobile phones) */}
