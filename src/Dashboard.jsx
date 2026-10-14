@@ -15,6 +15,9 @@ export default function Dashboard({ onLogout }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
+    const [showInstallBtn, setShowInstallBtn] = useState(false);
+
     // --- NEW: Offline & Sync States ---
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [syncing, setSyncing] = useState(false);
@@ -173,6 +176,25 @@ export default function Dashboard({ onLogout }) {
         }
     };
 
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+            setShowInstallBtn(true);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        window.addEventListener('appinstalled', () => {
+            setShowInstallBtn(false);
+            setDeferredPrompt(null);
+        });
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
+    }, []);
+
     // --- NEW: 4:30 PM Daily Digest Engine ---
     useEffect(() => {
         if (cases.length === 0) return;
@@ -246,6 +268,16 @@ export default function Dashboard({ onLogout }) {
         setEditingId(null);
         setFormData(initialFormState);
         setShowModal(true);
+    };
+
+    const handleInstallClick = async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+            setShowInstallBtn(false);
+        }
     };
 
     const openEditModal = (caseItem) => {
@@ -585,6 +617,16 @@ export default function Dashboard({ onLogout }) {
                 </h1>
 
                 <div className="flex items-center gap-1.5 md:gap-4 shrink-0">
+                    {/* --- PLACE THE INSTALL BUTTON CODE HERE --- */}
+                    {showInstallBtn && (
+                        <button
+                            onClick={handleInstallClick}
+                            className="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg text-[10px] md:text-sm font-bold transition shadow whitespace-nowrap flex items-center gap-1 animate-pulse"
+                        >
+                            <span>📥 Install App</span>
+                        </button>
+                    )}
+
                     <div className="bg-blue-800/50 px-2 py-1.5 md:px-4 md:py-2 rounded-lg text-[10px] md:text-sm font-medium border border-blue-400/30">
                         ৳{Number(walletBalance).toFixed(0)}
                     </div>
