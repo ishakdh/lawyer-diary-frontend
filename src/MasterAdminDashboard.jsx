@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PaymentWebhookAdmin from './components/PaymentWebhookAdmin';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 // --- ADDED API BASE FOR LIVE DEPLOYMENT ---
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -152,7 +152,7 @@ export default function MasterAdminDashboard({ onLogout }) {
         });
 
         // Generate Table
-        doc.autoTable({
+        autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
             startY: 35,
