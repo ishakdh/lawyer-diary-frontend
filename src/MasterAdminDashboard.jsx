@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import PaymentWebhookAdmin from './components/PaymentWebhookAdmin';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 // --- ADDED API BASE FOR LIVE DEPLOYMENT ---
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -120,6 +122,48 @@ export default function MasterAdminDashboard({ onLogout }) {
             if (data.success) setFinanceData({ stats: data.stats, transactions: data.transactions });
         } catch (err) { console.error(err); }
     };
+
+    const downloadLedgerPDF = () => {
+        const doc = new jsPDF();
+
+        // Add Header
+        doc.setFontSize(16);
+        doc.text("Financial Ledger Report", 14, 15);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+        if (dateFilter.start && dateFilter.end) {
+            doc.text(`Date Range: ${formatDate(dateFilter.start)} to ${formatDate(dateFilter.end)}`, 14, 28);
+        }
+
+        // Prepare Table Data
+        const tableColumn = ["Date & Time", "Lawyer Details", "Gateway / Txn ID", "Amount Received"];
+        const tableRows = [];
+
+        financeData.transactions.forEach(tx => {
+            const rowData = [
+                formatDateTime(tx.created_at),
+                `${tx.full_name}\n${tx.phone_number}`,
+                `${tx.gateway_used || tx.transaction_type || 'TOPUP'}\n${tx.transaction_id || tx.description}`,
+                `Tk ${Number(tx.amount).toFixed(2)}`
+            ];
+            tableRows.push(rowData);
+        });
+
+        // Generate Table
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] }, // Matches slate-800
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+        });
+
+        doc.save("Lawyer_Diary_Financial_Ledger.pdf");
+    };
+
 
     const handleOpenViewModal = async (userId) => {
         try {
@@ -398,6 +442,10 @@ export default function MasterAdminDashboard({ onLogout }) {
                                             <span className="text-slate-500">to</span>
                                             <input type="date" value={dateFilter.end} onChange={e => setDateFilter({...dateFilter, end: e.target.value})} className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
                                             <button onClick={loadFinanceData} className="bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-sm text-white font-medium transition">Filter</button>
+                                            <button onClick={loadFinanceData} className="bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-sm text-white font-medium transition">Filter</button>
+                                            <button onClick={downloadLedgerPDF} className="bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-lg text-sm text-white font-medium transition flex items-center gap-2 border border-slate-600">
+                                                📄 Download PDF
+                                            </button>
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto">
