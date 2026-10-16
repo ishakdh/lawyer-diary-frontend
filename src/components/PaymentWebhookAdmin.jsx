@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function PaymentWebhookAdmin() {
     const [logs, setLogs] = useState([]);
@@ -39,7 +39,7 @@ export default function PaymentWebhookAdmin() {
         return true;
     });
 
-    // ✨ NEW PDF GENERATION FUNCTION
+    // ✨ UPDATED PDF GENERATION FUNCTION
     const downloadReportPDF = () => {
         if (filteredLogs.length === 0) {
             alert("No data to download!");
@@ -79,8 +79,8 @@ export default function PaymentWebhookAdmin() {
             tableRows.push(rowData);
         });
 
-        // Generate Table
-        doc.autoTable({
+        // Generate Table using updated syntax to prevent crashes
+        autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
             startY: 35,
@@ -133,7 +133,7 @@ export default function PaymentWebhookAdmin() {
                         >
                             ↻ Sync Data
                         </button>
-                        {/* ✨ ADDED ONCLICK EVENT HERE */}
+                        {/* ✨ ATTACHED ONCLICK EVENT HERE */}
                         <button
                             onClick={downloadReportPDF}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 text-xs font-bold uppercase tracking-wider rounded transition"
