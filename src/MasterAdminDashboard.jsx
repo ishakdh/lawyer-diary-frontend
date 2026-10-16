@@ -151,6 +151,7 @@ export default function MasterAdminDashboard({ onLogout }) {
             tableRows.push(rowData);
         });
 
+
         // Generate Table
         autoTable(doc, {
             head: [tableColumn],
