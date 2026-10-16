@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function PaymentWebhookAdmin() {
     const [logs, setLogs] = useState([]);
@@ -36,6 +38,59 @@ export default function PaymentWebhookAdmin() {
         if (dateRange.end && logDate > dateRange.end) return false;
         return true;
     });
+
+    // ✨ NEW PDF GENERATION FUNCTION
+    const downloadReportPDF = () => {
+        if (filteredLogs.length === 0) {
+            alert("No data to download!");
+            return;
+        }
+
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(16);
+        doc.text("Payment Webhook SMS Logs", 14, 15);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+
+        if (dateRange.start || dateRange.end) {
+            doc.text(`Date Range: ${dateRange.start || 'Any'} to ${dateRange.end || 'Any'}`, 14, 28);
+        }
+
+        // Table Columns & Rows
+        const tableColumn = ["Sender Number", "Transaction ID", "Gateway", "Amount", "Status", "Received At"];
+        const tableRows = [];
+
+        filteredLogs.forEach(log => {
+            const rowData = [
+                log.sender_number,
+                log.transaction_id,
+                log.gateway,
+                `Tk ${Number(log.amount).toFixed(2)}`,
+                log.status === 'SUCCESS' ? 'Success' : 'Waiting',
+                new Date(log.received_at).toLocaleString('en-US', {
+                    month: 'numeric', day: 'numeric', year: 'numeric',
+                    hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+                })
+            ];
+            tableRows.push(rowData);
+        });
+
+        // Generate Table
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [15, 21, 35], textColor: [255, 255, 255] }, // Matches slate-900 theme
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+        });
+
+        doc.save("Payment_Webhook_Logs.pdf");
+    };
 
     return (
         <div className="min-h-screen bg-[#090E17] text-slate-300 p-6 font-mono selection:bg-emerald-500/30">
@@ -78,12 +133,15 @@ export default function PaymentWebhookAdmin() {
                         >
                             ↻ Sync Data
                         </button>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 text-xs font-bold uppercase tracking-wider rounded transition">
+                        {/* ✨ ADDED ONCLICK EVENT HERE */}
+                        <button
+                            onClick={downloadReportPDF}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 text-xs font-bold uppercase tracking-wider rounded transition"
+                        >
                             📄 Download Report
                         </button>
                     </div>
                 </div>
-
 
                 {/* Data Table */}
                 <div className="overflow-x-auto">

@@ -442,7 +442,6 @@ export default function MasterAdminDashboard({ onLogout }) {
                                             <span className="text-slate-500">to</span>
                                             <input type="date" value={dateFilter.end} onChange={e => setDateFilter({...dateFilter, end: e.target.value})} className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm outline-none" />
                                             <button onClick={loadFinanceData} className="bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-sm text-white font-medium transition">Filter</button>
-                                            <button onClick={loadFinanceData} className="bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg text-sm text-white font-medium transition">Filter</button>
                                             <button onClick={downloadLedgerPDF} className="bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-lg text-sm text-white font-medium transition flex items-center gap-2 border border-slate-600">
                                                 📄 Download PDF
                                             </button>
