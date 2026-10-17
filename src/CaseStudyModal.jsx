@@ -12,10 +12,10 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
 
-    // Audio states (Browser Speech-to-Text)
+    // Audio state (Browser Speech Recognition)
     const [isRecording, setIsRecording] = useState(false);
 
-    // NEW: State for camera vs gallery popup choice menu
+    // State for camera vs gallery popup choice menu
     const [showPickerMenu, setShowPickerMenu] = useState(false);
 
     const recognitionRef = useRef(null);
@@ -40,7 +40,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         const files = Array.from(e.target.files);
         if (!files.length) return;
 
-        setAnalyzing(true); // Optional: show loading indicator while compressing
+        setAnalyzing(true);
         try {
             for (const file of files) {
                 const compressedImage = await compressImage(file);
@@ -53,7 +53,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
     };
 
-    // Helper to resize and compress images before uploading
     const compressImage = (file) => {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -66,7 +65,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     let width = img.width;
                     let height = img.height;
 
-                    // Max dimension constraint (1200px)
                     const MAX_DIMENSION = 1200;
                     if (width > height && width > MAX_DIMENSION) {
                         height = Math.round((height *= MAX_DIMENSION / width));
@@ -81,7 +79,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Compress to JPEG with 0.8 quality
                     const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     resolve({ base64: compressedDataUrl, mimeType: 'image/jpeg' });
                 };
@@ -99,7 +96,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         setError('');
         setResult('');
         setChatMessages([]);
-        setPendingAudio(null);
 
         try {
             const token = localStorage.getItem('lawyer_token');
@@ -274,7 +270,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     Upload or Capture Document Photo(s)
                                 </label>
 
-                                {/* Clickable box that opens the camera/gallery choice popup */}
                                 <div
                                     onClick={() => setShowPickerMenu(true)}
                                     className="border-2 border-dashed border-purple-300 hover:border-purple-500 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-purple-50/30 transition text-center"
@@ -283,7 +278,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     <span className="text-xs font-bold text-purple-700">Tap to Take Photo or Choose from Gallery</span>
                                 </div>
 
-                                {/* Hidden Input 1: Direct Camera Capture */}
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -293,7 +287,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     className="hidden"
                                 />
 
-                                {/* Hidden Input 2: Gallery Upload with Multi-select Support */}
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -304,7 +297,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 />
                             </div>
 
-                            {/* Popup Action Menu */}
                             {showPickerMenu && (
                                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5 flex flex-col gap-3">
@@ -364,7 +356,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 {analyzing ? <span>⚙️ AI analyzing document...</span> : <span>Analyze Case Document ({images.length} Page{images.length > 1 ? 's' : ''})</span>}
                             </button>
 
-                            {/* --- CHAT INPUT DIRECTLY ON HOME SCREEN --- */}
                             <div className="mt-4 pt-4 border-t border-purple-100">
                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2 text-center">
                                     Or Discuss A Case Without Document
@@ -374,8 +365,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                         type="button"
                                         onClick={isRecording ? stopRecording : startRecording}
                                         className={`p-2.5 rounded-xl text-white font-bold transition shadow-sm ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
-                                        title={isRecording ? "Click to Stop Recording" : "Click to Record Voice"}
-                                        disabled={chatLoading || pendingAudio !== null}
+                                        title={isRecording ? "Click to Stop Recording" : "Click to Speak"}
+                                        disabled={chatLoading}
                                     >
                                         {isRecording ? '⏹️' : '🎙️'}
                                     </button>
@@ -433,7 +424,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     {chatLoading && (
                                         <div className="flex justify-start">
                                             <div className="p-2.5 bg-white border border-slate-200 rounded-xl rounded-bl-none shadow-sm text-xs text-slate-500 font-medium">
-                                                <span className="animate-pulse">AI is listening and thinking...</span>
+                                                <span className="animate-pulse">AI is thinking...</span>
                                             </div>
                                         </div>
                                     )}
@@ -444,8 +435,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                         type="button"
                                         onClick={isRecording ? stopRecording : startRecording}
                                         className={`p-2.5 rounded-xl text-white font-bold transition shadow-sm ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
-                                        title={isRecording ? "Click to Stop Recording" : "Click to Record Voice"}
-                                        disabled={chatLoading || pendingAudio !== null}
+                                        title={isRecording ? "Click to Stop Recording" : "Click to Speak"}
+                                        disabled={chatLoading}
                                     >
                                         {isRecording ? '⏹️' : '🎙️'}
                                     </button>
@@ -453,26 +444,16 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-center bg-white border border-slate-200 rounded-xl shadow-sm p-1">
                                         <input
                                             type="text"
-                                            value={pendingAudio ? "🎤 Voice message ready to send..." : chatInput}
+                                            value={chatInput}
                                             onChange={e => setChatInput(e.target.value)}
-                                            placeholder={isRecording ? "Recording audio..." : "Message AI Assistant..."}
+                                            placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
                                             className="flex-1 p-2 text-sm outline-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium"
-                                            disabled={chatLoading || isRecording || pendingAudio !== null}
+                                            disabled={chatLoading || isRecording}
                                         />
-
-                                        {pendingAudio && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setPendingAudio(null)}
-                                                className="px-2 text-red-500 hover:text-red-700 text-lg font-bold"
-                                            >
-                                                &times;
-                                            </button>
-                                        )}
 
                                         <button
                                             type="submit"
-                                            disabled={(!chatInput.trim() && !pendingAudio) || chatLoading || isRecording}
+                                            disabled={!chatInput.trim() || chatLoading || isRecording}
                                             className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50"
                                         >
                                             Send
