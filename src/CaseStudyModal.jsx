@@ -12,15 +12,13 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
 
-    // Audio states
+    // Audio states (Browser Speech-to-Text)
     const [isRecording, setIsRecording] = useState(false);
-    const [pendingAudio, setPendingAudio] = useState(null);
 
     // NEW: State for camera vs gallery popup choice menu
     const [showPickerMenu, setShowPickerMenu] = useState(false);
 
-    const mediaRecorderRef = useRef(null);
-    const audioChunksRef = useRef([]);
+    const recognitionRef = useRef(null);
 
     useEffect(() => {
         fetchQuota();
@@ -126,61 +124,63 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
     };
 
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-            mediaRecorderRef.current = new MediaRecorder(stream, {
-                mimeType: 'audio/webm',
-                audioBitsPerSecond: 16000
-            });
-
-            audioChunksRef.current = [];
-
-            mediaRecorderRef.current.ondataavailable = (e) => {
-                if (e.data.size > 0) audioChunksRef.current.push(e.data);
-            };
-
-            mediaRecorderRef.current.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                processAudioForHold(audioBlob);
-                stream.getTracks().forEach(track => track.stop());
-            };
-
-            mediaRecorderRef.current.start();
-            setIsRecording(true);
-        } catch (err) {
-            alert('Microphone access denied or unavailable.');
-            console.error('Audio capture error:', err);
+    const startRecording = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Speech recognition is not supported in this browser. Please use Google Chrome.');
+            return;
         }
-    };
 
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
+        const recognition = new SpeechRecognition();
+        recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            setIsRecording(true);
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            setChatInput(prev => prev ? `${prev} ${transcript}` : transcript);
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            setIsRecording(false);
+        };
+
+        recognition.onend = () => {
+            setIsRecording(false);
+        };
+
+        try {
+            recognition.start();
+            recognitionRef.current = recognition;
+        } catch (err) {
+            console.error('Recognition start error:', err);
             setIsRecording(false);
         }
     };
 
-    const processAudioForHold = (blob) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-            setPendingAudio(reader.result);
-        };
+    const stopRecording = () => {
+        if (recognitionRef.current && isRecording) {
+            recognitionRef.current.stop();
+            setIsRecording(false);
+        }
     };
 
     const handleTextSubmit = (e) => {
         e.preventDefault();
-        if (!chatInput.trim() && !pendingAudio) return;
-        sendMessageToAI(chatInput, pendingAudio);
+        if (!chatInput.trim()) return;
+        sendMessageToAI(chatInput);
     };
 
-    const sendMessageToAI = async (textMsg, audioBase64) => {
+    const sendMessageToAI = async (textMsg) => {
         const userMsg = {
             role: 'user',
-            text: audioBase64 ? '🎤 Voice Message sent' : textMsg,
-            isAudio: !!audioBase64
+            text: textMsg,
+            isAudio: false
         };
 
         if (!result) {
@@ -189,7 +189,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
         setChatMessages(prev => [...prev, userMsg]);
         setChatInput('');
-        setPendingAudio(null);
         setChatLoading(true);
 
         try {
@@ -204,7 +203,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     previousAnalysis: result,
                     chatMessages,
                     newMessage: textMsg,
-                    newAudio: audioBase64 || ''
+                    newAudio: ''
                 })
             });
             const data = await res.json();
@@ -384,26 +383,16 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-center bg-white border border-slate-200 rounded-xl shadow-sm p-1">
                                         <input
                                             type="text"
-                                            value={pendingAudio ? "🎤 Voice message ready to send..." : chatInput}
+                                            value={chatInput}
                                             onChange={e => setChatInput(e.target.value)}
-                                            placeholder={isRecording ? "Recording audio..." : "Message AI Assistant directly..."}
+                                            placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
                                             className="flex-1 p-2 text-sm outline-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium"
-                                            disabled={chatLoading || isRecording || pendingAudio !== null}
+                                            disabled={chatLoading || isRecording}
                                         />
-
-                                        {pendingAudio && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setPendingAudio(null)}
-                                                className="px-2 text-red-500 hover:text-red-700 text-lg font-bold"
-                                            >
-                                                &times;
-                                            </button>
-                                        )}
 
                                         <button
                                             type="submit"
-                                            disabled={(!chatInput.trim() && !pendingAudio) || chatLoading || isRecording}
+                                            disabled={!chatInput.trim() || chatLoading || isRecording}
                                             className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50"
                                         >
                                             Send
