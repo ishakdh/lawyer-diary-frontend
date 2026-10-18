@@ -1,5 +1,46 @@
 import { useState, useEffect, useRef } from 'react';
 
+// Helper to normalize text when checking for Android speech overlaps
+const cleanForCompare = (str) =>
+    str.replace(/[।.,?!]+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+// Merges speech chunks without repeating words on Android Chrome
+const mergeSpeechChunks = (existing, incoming) => {
+    const a = existing.replace(/\s+/g, ' ').trim();
+    const b = incoming.replace(/\s+/g, ' ').trim();
+    if (!a) return b;
+    if (!b) return a;
+
+    const cleanA = cleanForCompare(a);
+    const cleanB = cleanForCompare(b);
+
+    // 1. Android Cumulative Bug: incoming chunk already contains the previous phrase at the start
+    if (cleanB.startsWith(cleanA)) {
+        return b;
+    }
+
+    // 2. Duplicate chunk: existing phrase already ends with this exact chunk
+    if (cleanA.endsWith(cleanB)) {
+        return a;
+    }
+
+    // 3. Partial word-boundary overlap (e.g., "আমি একটি" + "একটি মামলার")
+    const wordsA = a.split(' ');
+    const wordsB = b.split(' ');
+    const maxOverlap = Math.min(wordsA.length, wordsB.length);
+
+    for (let len = maxOverlap; len > 0; len--) {
+        const endOfA = cleanForCompare(wordsA.slice(wordsA.length - len).join(' '));
+        const startOfB = cleanForCompare(wordsB.slice(0, len).join(' '));
+        if (endOfA && endOfA === startOfB) {
+            return [...wordsA, ...wordsB.slice(len)].join(' ');
+        }
+    }
+
+    // 4. Standard append (PC Chrome)
+    return `${a} ${b}`;
+};
+
 export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const [images, setImages] = useState([]);
     const [language, setLanguage] = useState('bn');
@@ -12,13 +53,13 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const [chatInput, setChatInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
 
-    // Audio state (Browser Speech Recognition)
+    // Audio state
     const [isRecording, setIsRecording] = useState(false);
 
-    // State for camera vs gallery popup choice menu
+    // Camera vs gallery popup menu
     const [showPickerMenu, setShowPickerMenu] = useState(false);
 
-    // Copy Feedback State
+    // Copy feedback state
     const [copiedIndex, setCopiedIndex] = useState(null);
     const [copiedInsight, setCopiedInsight] = useState(false);
 
@@ -27,9 +68,28 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const audioChunksRef = useRef([]);
     const textareaRef = useRef(null);
 
+    // Refs to keep microphone alive across breathing pauses & preserve text
+    const isListeningRef = useRef(false);
+    const liveInputRef = useRef('');
+
     useEffect(() => {
         fetchQuota();
+        return () => {
+            // Cleanup mic if modal closes while recording
+            isListeningRef.current = false;
+            if (recognitionRef.current) {
+                try { recognitionRef.current.stop(); } catch (e) {}
+            }
+        };
     }, []);
+
+    // Automatically adjust textarea height whenever chatInput changes
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
+        }
+    }, [chatInput, result]);
 
     const fetchQuota = async () => {
         try {
@@ -40,7 +100,9 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             });
             const data = await res.json();
             if (data.success) setQuota(data);
-        } catch (err) { console.error('Failed to load quota', err); }
+        } catch (err) {
+            console.error('Failed to load quota', err);
+        }
     };
 
     const handleFiles = async (e) => {
@@ -127,69 +189,90 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
     };
 
+    // Launches a speech recognition session and auto-restarts if user pauses for a breath
+    const launchRecognitionSession = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition || !isListeningRef.current) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        // Lock in whatever text is already in the box before this session/breath starts
+        const sessionBaseText = liveInputRef.current ? liveInputRef.current.trim() : '';
+
+        recognition.onstart = () => {
+            setIsRecording(true);
+        };
+
+        recognition.onresult = (event) => {
+            let sessionText = '';
+
+            // Rebuild from 0 and merge overlapping chunks so Android never duplicates words
+            for (let i = 0; i < event.results.length; ++i) {
+                const chunk = event.results[i][0].transcript;
+                if (chunk && chunk.trim()) {
+                    sessionText = mergeSpeechChunks(sessionText, chunk);
+                }
+            }
+
+            const updatedText = sessionBaseText
+                ? `${sessionBaseText} ${sessionText}`.trim()
+                : sessionText.trim();
+
+            liveInputRef.current = updatedText;
+            setChatInput(updatedText);
+        };
+
+        recognition.onerror = (event) => {
+            // Ignore 'no-speech' errors when user pauses to breathe
+            if (
+                event.error === 'not-allowed' ||
+                event.error === 'service-not-allowed' ||
+                event.error === 'audio-capture'
+            ) {
+                isListeningRef.current = false;
+                setIsRecording(false);
+            }
+        };
+
+        recognition.onend = () => {
+            // If the user did NOT click Stop, automatically restart after taking a breath
+            if (isListeningRef.current) {
+                setTimeout(() => {
+                    if (isListeningRef.current) {
+                        launchRecognitionSession();
+                    }
+                }, 100);
+            } else {
+                setIsRecording(false);
+            }
+        };
+
+        try {
+            recognition.start();
+            recognitionRef.current = recognition;
+        } catch (err) {
+            console.error('Recognition start error:', err);
+            setIsRecording(false);
+        }
+    };
+
     const startRecording = async () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+        // 1. ANDROID / CHROME / DESKTOP (Live Speech-to-Text)
         if (SpeechRecognition) {
-            const recognition = new SpeechRecognition();
-            recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.maxAlternatives = 1;
-
-            const baseText = chatInput ? chatInput.trim() + ' ' : '';
-            let sessionTranscript = '';
-            let lastProcessedIndex = -1;
-
-            recognition.onstart = () => setIsRecording(true);
-
-            recognition.onresult = (event) => {
-                let finalStr = '';
-                let interimStr = '';
-
-                if (event.resultIndex <= lastProcessedIndex) {
-                    lastProcessedIndex = event.resultIndex - 1;
-                }
-
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    let chunk = event.results[i][0].transcript;
-
-                    if (event.results[i].isFinal) {
-                        if (i > lastProcessedIndex) {
-                            finalStr += chunk + ' ';
-                            lastProcessedIndex = i;
-                        }
-                    } else {
-                        interimStr += chunk;
-                    }
-                }
-
-                if (finalStr) {
-                    sessionTranscript += finalStr;
-                }
-
-                const updatedText = (baseText + sessionTranscript + interimStr).trim();
-                setChatInput(updatedText);
-                autoResizeTextarea();
-            };
-
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                setIsRecording(false);
-            };
-
-            recognition.onend = () => setIsRecording(false);
-
-            try {
-                recognition.start();
-                recognitionRef.current = recognition;
-                return;
-            } catch (err) {
-                console.error('Recognition start error:', err);
-            }
+            liveInputRef.current = chatInput;
+            isListeningRef.current = true;
+            setIsRecording(true);
+            launchRecognitionSession();
+            return;
         }
 
-        // iPhone Fallback
+        // 2. iPHONE / SAFARI FALLBACK (Audio File Recording)
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {};
@@ -219,22 +302,34 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     };
 
     const stopRecording = () => {
-        if (recognitionRef.current && isRecording) {
-            recognitionRef.current.stop();
-            setIsRecording(false);
+        // Explicitly mark listening as false so onend knows not to auto-restart
+        isListeningRef.current = false;
+        setIsRecording(false);
+
+        if (recognitionRef.current) {
+            try {
+                recognitionRef.current.stop();
+            } catch (e) {}
         }
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            try {
+                mediaRecorderRef.current.stop();
+            } catch (e) {}
         }
     };
 
     const handleTextSubmit = (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
+
+        // Stop mic if user hits Send while recording is still active
+        if (isListeningRef.current || isRecording) {
+            stopRecording();
+        }
+
         sendMessageToAI(chatInput);
+        liveInputRef.current = '';
         setChatInput('');
-        if (textareaRef.current) textareaRef.current.style.height = '42px';
     };
 
     const sendMessageToAI = async (textMsg, audioBase64 = '') => {
@@ -281,16 +376,9 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
     };
 
-    const autoResizeTextarea = () => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
-        }
-    };
-
     const handleInputChange = (e) => {
+        liveInputRef.current = e.target.value;
         setChatInput(e.target.value);
-        autoResizeTextarea();
     };
 
     const copyToClipboard = (text, index = null) => {
@@ -304,10 +392,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             }
         });
     };
-
-    // Calculate free remaining safely with instant default fallback (20)
-    const freeRemaining = quota ? quota.free_remaining : 20;
-    const walletBalance = quota ? Number(quota.wallet_balance).toFixed(2) : '0.00';
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-50">
@@ -325,8 +409,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     <button onClick={onClose} className="text-purple-200 hover:text-white text-2xl font-bold">&times;</button>
                 </div>
 
-
-                {/* --- EXACT FORMATTED FREE USAGE & BILLING BANNER --- */}
+                {/* --- FREE USAGE & BILLING BANNER --- */}
                 {!result && (
                     <div className="bg-purple-50 border-b border-purple-200 px-5 py-3 flex justify-between items-center shrink-0">
                         <div>
@@ -338,7 +421,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                         <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
                             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
                             <p className="text-xs font-black text-slate-800">
-                                ৳{quota && quota.wallet_balance !== undefined ? Number(quota.wallet_balance).toFixed(2) : '619.00'}
+                                ৳{quota && quota.wallet_balance !== undefined ? Number(quota.wallet_balance).toFixed(2) : '0.00'}
                             </p>
                         </div>
                     </div>
@@ -438,14 +521,14 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                                     handleTextSubmit(e);
                                                 }
                                             }}
-                                            placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
+                                            placeholder={isRecording ? "Listening... (Tap ⏹️ when done)" : "Type or speak your question..."}
                                             className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent select-text"
-                                            disabled={chatLoading || isRecording}
+                                            disabled={chatLoading}
                                         />
 
                                         <button
                                             type="submit"
-                                            disabled={!chatInput.trim() || chatLoading || isRecording}
+                                            disabled={!chatInput.trim() || chatLoading}
                                             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 shrink-0"
                                         >
                                             Send
@@ -531,14 +614,14 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                                     handleTextSubmit(e);
                                                 }
                                             }}
-                                            placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
+                                            placeholder={isRecording ? "Listening... (Tap ⏹️ when done)" : "Type or speak your question..."}
                                             className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent select-text"
-                                            disabled={chatLoading || isRecording}
+                                            disabled={chatLoading}
                                         />
 
                                         <button
                                             type="submit"
-                                            disabled={!chatInput.trim() || chatLoading || isRecording}
+                                            disabled={!chatInput.trim() || chatLoading}
                                             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 shrink-0"
                                         >
                                             Send
