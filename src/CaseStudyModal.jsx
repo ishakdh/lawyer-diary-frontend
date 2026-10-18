@@ -281,6 +281,12 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
     };
 
+    const handleInputResize = (e) => {
+        setChatInput(e.target.value);
+        e.target.style.height = 'auto'; // Reset height to calculate new height
+        e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; // Max height 120px
+    };
+
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-50">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -437,20 +443,27 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                         {isRecording ? '⏹️' : '🎙️'}
                                     </button>
 
-                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-center bg-white border border-slate-200 rounded-xl shadow-sm p-1">
-                                        <input
-                                            type="text"
+                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-end bg-white border border-slate-200 rounded-xl shadow-sm p-1.5">
+                                        <textarea
+                                            rows="1"
                                             value={chatInput}
-                                            onChange={e => setChatInput(e.target.value)}
+                                            onChange={handleInputResize}
+                                            onKeyDown={(e) => {
+                                                // Submit on Enter (but allow Shift+Enter for new line)
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleTextSubmit(e);
+                                                }
+                                            }}
                                             placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
-                                            className="flex-1 p-2 text-sm outline-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium"
+                                            className="flex-1 p-2 text-sm outline-none resize-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium overflow-y-auto min-h-[40px] max-h-[120px]"
                                             disabled={chatLoading || isRecording}
                                         />
 
                                         <button
                                             type="submit"
                                             disabled={!chatInput.trim() || chatLoading || isRecording}
-                                            className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50"
+                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 h-[40px]"
                                         >
                                             Send
                                         </button>
