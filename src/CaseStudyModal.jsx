@@ -23,6 +23,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const audioChunksRef = useRef([]);
     const finalTranscriptRef = useRef('');
     const originalTextRef = useRef('');
+    const textareaRef = useRef(null);
 
     useEffect(() => {
         fetchQuota();
@@ -127,7 +128,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const startRecording = async () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-        // 1. ANDROID / CHROME / DESKTOP (Live Speech-to-Text)
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
@@ -135,8 +135,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
-            // Save any existing text before we start speaking so we don't erase it
             originalTextRef.current = chatInput ? chatInput.trim() + ' ' : '';
+            let lastProcessedIndex = -1;
 
             recognition.onstart = () => setIsRecording(true);
 
@@ -144,30 +144,26 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                 let finalStr = '';
                 let interimStr = '';
 
-                for (let i = 0; i < event.results.length; ++i) {
+                if (event.resultIndex <= lastProcessedIndex) {
+                    lastProcessedIndex = event.resultIndex - 1;
+                }
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
                     let chunk = event.results[i][0].transcript;
 
                     if (event.results[i].isFinal) {
-                        // SMART FIX: Android Chrome often repeats the previous text in the new chunk (Cumulative Bug).
-                        // If the new chunk starts with the previous chunk, we strip the old words and only keep the new ones.
-                        if (i > 0 && event.results[i - 1].isFinal) {
-                            let prevChunk = event.results[i - 1][0].transcript;
-                            if (prevChunk.trim() && chunk.toLowerCase().trim().startsWith(prevChunk.toLowerCase().trim())) {
-                                // Extract only the newly spoken words
-                                const overlapIndex = chunk.toLowerCase().indexOf(prevChunk.toLowerCase().trim());
-                                if (overlapIndex !== -1) {
-                                    chunk = chunk.substring(overlapIndex + prevChunk.trim().length);
-                                }
-                            }
+                        if (i > lastProcessedIndex) {
+                            finalStr += chunk + ' ';
+                            lastProcessedIndex = i;
                         }
-                        finalStr += chunk;
                     } else {
                         interimStr += chunk;
                     }
                 }
 
-                // Combine what was there before + final spoken words + current guessing words safely
-                setChatInput(originalTextRef.current + finalStr + interimStr);
+                const newText = (originalTextRef.current + finalStr + interimStr).trim();
+                setChatInput(newText);
+                autoResizeTextarea();
             };
 
             recognition.onerror = (event) => {
@@ -186,7 +182,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             }
         }
 
-        // 2. iPHONE / SAFARI FALLBACK (Audio File Recording)
+        // iPhone Fallback
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {};
@@ -210,18 +206,18 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             mediaRecorderRef.current.start();
             setIsRecording(true);
         } catch (err) {
-            alert('Microphone access denied. Please check your browser permissions.');
+            alert('Microphone access denied.');
             console.error('Audio capture error:', err);
         }
     };
 
     const stopRecording = () => {
         if (recognitionRef.current && isRecording) {
-            recognitionRef.current.stop(); // Stop Android speech
+            recognitionRef.current.stop();
             setIsRecording(false);
         }
         if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop(); // Stop iPhone audio
+            mediaRecorderRef.current.stop();
             setIsRecording(false);
         }
     };
@@ -230,6 +226,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         e.preventDefault();
         if (!chatInput.trim()) return;
         sendMessageToAI(chatInput);
+        setChatInput('');
+        if (textareaRef.current) textareaRef.current.style.height = '42px';
     };
 
     const sendMessageToAI = async (textMsg, audioBase64 = '') => {
@@ -244,7 +242,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
 
         setChatMessages(prev => [...prev, userMsg]);
-        setChatInput('');
         setChatLoading(true);
 
         try {
@@ -259,18 +256,14 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     previousAnalysis: result,
                     chatMessages,
                     newMessage: textMsg,
-                    newAudio: audioBase64 // Sends the iPhone audio to the backend
+                    newAudio: audioBase64
                 })
             });
             const data = await res.json();
             if (data.success) {
                 setChatMessages(prev => [...prev, { role: 'model', text: data.reply }]);
-
-                // If a new discussion triggered a 1 TK charge, update the wallet balance in the UI
-                if (data.charged && onBalanceDeducted) {
-                    onBalanceDeducted();
-                }
-                fetchQuota(); // Always refresh to update the "Free scans remaining" number
+                if (data.charged && onBalanceDeducted) onBalanceDeducted();
+                fetchQuota();
             } else {
                 alert(data.message || 'Chat failed.');
             }
@@ -281,15 +274,23 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
     };
 
-    const handleInputResize = (e) => {
+    const autoResizeTextarea = () => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
+        }
+    };
+
+    const handleInputChange = (e) => {
         setChatInput(e.target.value);
-        e.target.style.height = 'auto'; // Reset height to calculate new height
-        e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; // Max height 120px
+        autoResizeTextarea();
     };
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-50">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+
+                {/* Modal Header */}
                 <div className="bg-gradient-to-r from-purple-800 to-indigo-900 text-white px-5 py-4 flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-2">
                         <span className="text-xl">🪄</span>
@@ -301,33 +302,31 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     <button onClick={onClose} className="text-purple-200 hover:text-white text-2xl font-bold">&times;</button>
                 </div>
 
+                {/* --- QUOTA BANNER PLACED PROMINENTLY AT THE TOP --- */}
+                {quota && !result && (
+                    <div className="bg-purple-50 border-b border-purple-200 px-5 py-3 flex justify-between items-center shrink-0">
+                        <div>
+                            <p className="text-[10px] text-purple-700 font-black tracking-wider uppercase mb-0.5">Monthly Quota Status</p>
+                            {quota.free_remaining > 0 ? (
+                                <p className="text-xs text-purple-900 font-medium">
+                                    🎁 You have <strong>{quota.free_remaining}/20 free</strong> case studies remaining this month. (After 20, it charges ৳1 per study).
+                                </p>
+                            ) : (
+                                <p className="text-xs text-rose-700 font-bold">
+                                    ⚡ 20 free studies used for this month. Standard charge: <strong>৳1 per study</strong>.
+                                </p>
+                            )}
+                        </div>
+                        <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
+                            <p className="text-xs font-black text-slate-800">৳{Number(quota.wallet_balance).toFixed(2)}</p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="p-5 overflow-y-auto space-y-4 flex-1">
                     {!result && (
                         <>
-                            {/* --- NEW QUOTA BANNER LOCATION --- */}
-                            {quota && (
-                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex justify-between items-center shadow-sm">
-                                    <div>
-                                        <p className="text-[10px] text-purple-600 font-black tracking-wider uppercase mb-0.5">Monthly Quota (20 Free)</p>
-                                        {quota.free_remaining > 0 ? (
-                                            <p className="text-xs text-purple-900 font-medium leading-relaxed">
-                                                🎁 You have <strong>{quota.free_remaining} free</strong> case studies remaining this month. <br/>
-                                                <span className="text-purple-700/80 text-[11px]">After your 20 free studies are used, it charges ৳1 per study.</span>
-                                            </p>
-                                        ) : (
-                                            <p className="text-xs text-rose-700 font-bold leading-relaxed">
-                                                ⚡ Your 20 free case studies are over for this month.<br/>
-                                                <span className="text-rose-600/80 text-[11px]">A standard charge of ৳1 per case study will be deducted.</span>
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
-                                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
-                                        <p className="text-xs font-black text-slate-800">৳{Number(quota.wallet_balance).toFixed(2)}</p>
-                                    </div>
-                                </div>
-                            )}
-
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">
                                     Select Output Language (আউটপুট ভাষা)
@@ -355,59 +354,21 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     <span className="text-xs font-bold text-purple-700">Tap to Take Photo or Choose from Gallery</span>
                                 </div>
 
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    capture="environment"
-                                    id="cameraInput"
-                                    onChange={handleFiles}
-                                    className="hidden"
-                                />
-
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    id="galleryInput"
-                                    onChange={handleFiles}
-                                    className="hidden"
-                                />
+                                <input type="file" accept="image/*" capture="environment" id="cameraInput" onChange={handleFiles} className="hidden" />
+                                <input type="file" accept="image/*" multiple id="galleryInput" onChange={handleFiles} className="hidden" />
                             </div>
 
                             {showPickerMenu && (
                                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5 flex flex-col gap-3">
                                         <h3 className="text-base font-bold text-slate-800 text-center mb-1">Select Image Source</h3>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setShowPickerMenu(false);
-                                                document.getElementById('cameraInput').click();
-                                            }}
-                                            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-xl shadow transition flex items-center justify-center gap-2"
-                                        >
+                                        <button type="button" onClick={() => { setShowPickerMenu(false); document.getElementById('cameraInput').click(); }} className="w-full py-3 px-4 bg-purple-600 text-white font-bold text-sm rounded-xl shadow flex items-center justify-center gap-2">
                                             <span>📷</span> Take Photo from Camera
                                         </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setShowPickerMenu(false);
-                                                document.getElementById('galleryInput').click();
-                                            }}
-                                            className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl transition flex items-center justify-center gap-2"
-                                        >
-                                            <span>🖼️</span> Upload from Gallery (Multiple)
+                                        <button type="button" onClick={() => { setShowPickerMenu(false); document.getElementById('galleryInput').click(); }} className="w-full py-3 px-4 bg-slate-100 text-slate-800 font-bold text-sm rounded-xl flex items-center justify-center gap-2">
+                                            <span>🖼️</span> Upload from Gallery
                                         </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPickerMenu(false)}
-                                            className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-700 mt-1"
-                                        >
-                                            Cancel
-                                        </button>
+                                        <button type="button" onClick={() => setShowPickerMenu(false)} className="w-full py-2 text-xs font-bold text-slate-500 mt-1">Cancel</button>
                                     </div>
                                 </div>
                             )}
@@ -423,36 +384,34 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 </div>
                             )}
 
-                            {error && (
-                                <div className="bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-sm font-bold text-center">
-                                    {error}
-                                </div>
-                            )}
+                            {error && <div className="bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-sm font-bold text-center">{error}</div>}
 
                             <button onClick={handleAnalyze} disabled={analyzing || images.length === 0} className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm transition shadow disabled:opacity-50 flex items-center justify-center gap-2">
                                 {analyzing ? <span>⚙️ AI analyzing document...</span> : <span>Analyze Case Document ({images.length} Page{images.length > 1 ? 's' : ''})</span>}
                             </button>
 
+                            {/* --- DISCUSS WITHOUT DOCUMENT & AUTO-GROWING TEXTAREA --- */}
                             <div className="mt-4 pt-4 border-t border-purple-100">
                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2 text-center">
                                     Or Discuss A Case Without Document
                                 </label>
-                                <div className="flex gap-2 shrink-0 items-center">
+                                <div className="flex gap-2 items-end">
                                     <button
                                         type="button"
                                         onClick={isRecording ? stopRecording : startRecording}
-                                        className={`p-2.5 rounded-xl text-white font-bold transition shadow-sm ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
-                                        title={isRecording ? "Click to Stop Recording" : "Click to Speak"}
+                                        className={`p-3 rounded-xl text-white font-bold transition shadow-sm shrink-0 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
+                                        title={isRecording ? "Stop Recording" : "Speak"}
                                         disabled={chatLoading}
                                     >
                                         {isRecording ? '⏹️' : '🎙️'}
                                     </button>
 
-                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-end bg-white border border-slate-200 rounded-xl shadow-sm p-1.5">
+                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-end bg-white border border-slate-200 rounded-xl shadow-sm p-2">
                                         <textarea
+                                            ref={textareaRef}
                                             rows="1"
                                             value={chatInput}
-                                            onChange={handleInputResize}
+                                            onChange={handleInputChange}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && !e.shiftKey) {
                                                     e.preventDefault();
@@ -460,14 +419,14 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                                 }
                                             }}
                                             placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
-                                            className="flex-1 p-2 text-sm outline-none resize-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium overflow-y-auto min-h-[40px] max-h-[120px]"
+                                            className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent"
                                             disabled={chatLoading || isRecording}
                                         />
 
                                         <button
                                             type="submit"
                                             disabled={!chatInput.trim() || chatLoading || isRecording}
-                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 h-[40px]"
+                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 shrink-0"
                                         >
                                             Send
                                         </button>
@@ -513,22 +472,23 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                     )}
                                 </div>
 
-                                <div className="flex gap-2 shrink-0 items-center">
+                                <div className="flex gap-2 items-end">
                                     <button
                                         type="button"
                                         onClick={isRecording ? stopRecording : startRecording}
-                                        className={`p-2.5 rounded-xl text-white font-bold transition shadow-sm ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
-                                        title={isRecording ? "Click to Stop Recording" : "Click to Speak"}
+                                        className={`p-3 rounded-xl text-white font-bold transition shadow-sm shrink-0 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-700 hover:bg-slate-800'} disabled:opacity-50`}
+                                        title={isRecording ? "Stop Recording" : "Speak"}
                                         disabled={chatLoading}
                                     >
                                         {isRecording ? '⏹️' : '🎙️'}
                                     </button>
 
-                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-end bg-white border border-slate-200 rounded-xl shadow-sm p-1.5">
+                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-end bg-white border border-slate-200 rounded-xl shadow-sm p-2">
                                         <textarea
+                                            ref={textareaRef}
                                             rows="1"
                                             value={chatInput}
-                                            onChange={handleInputResize}
+                                            onChange={handleInputChange}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && !e.shiftKey) {
                                                     e.preventDefault();
@@ -536,14 +496,14 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                                 }
                                             }}
                                             placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
-                                            className="flex-1 p-2 text-sm outline-none resize-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium overflow-y-auto min-h-[40px] max-h-[120px]"
+                                            className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent"
                                             disabled={chatLoading || isRecording}
                                         />
 
                                         <button
                                             type="submit"
                                             disabled={!chatInput.trim() || chatLoading || isRecording}
-                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 h-[40px]"
+                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 shrink-0"
                                         >
                                             Send
                                         </button>
