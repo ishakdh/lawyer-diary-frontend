@@ -129,7 +129,10 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
         const recognition = new SpeechRecognition();
         recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
-        recognition.interimResults = false;
+
+        // --- FIXES HERE ---
+        recognition.continuous = true;       // Keeps recording active even if you pause
+        recognition.interimResults = true;   // Shows words as you speak them in real time
         recognition.maxAlternatives = 1;
 
         recognition.onstart = () => {
@@ -137,8 +140,15 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         };
 
         recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            setChatInput(prev => prev ? `${prev} ${transcript}` : transcript);
+            let finalTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                }
+            }
+            if (finalTranscript) {
+                setChatInput(prev => prev ? `${prev} ${finalTranscript}` : finalTranscript);
+            }
         };
 
         recognition.onerror = (event) => {
