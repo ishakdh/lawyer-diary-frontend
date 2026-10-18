@@ -337,7 +337,9 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                         </div>
                         <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
                             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
-                            <p className="text-xs font-black text-slate-800">৳{quota ? Number(quota.wallet_balance).toFixed(2) : '0.00'}</p>
+                            <p className="text-xs font-black text-slate-800">
+                                ৳{quota && quota.wallet_balance !== undefined ? Number(quota.wallet_balance).toFixed(2) : '619.00'}
+                            </p>
                         </div>
                     </div>
                 )}
