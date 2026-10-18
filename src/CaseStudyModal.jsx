@@ -325,24 +325,19 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     <button onClick={onClose} className="text-purple-200 hover:text-white text-2xl font-bold">&times;</button>
                 </div>
 
-                {/* --- INSTANT FREE STUDY & CHARGE BANNER (NO LOADING DELAY) --- */}
+
+                {/* --- EXACT FORMATTED FREE USAGE & BILLING BANNER --- */}
                 {!result && (
                     <div className="bg-purple-50 border-b border-purple-200 px-5 py-3 flex justify-between items-center shrink-0">
                         <div>
                             <p className="text-[10px] text-purple-700 font-black tracking-wider uppercase mb-0.5">Free Study & Billing Policy</p>
-                            {freeRemaining > 0 ? (
-                                <p className="text-xs text-purple-900 font-medium leading-relaxed">
-                                    Free study <strong>{freeRemaining}</strong> (or 20). After this, every case study will charge ৳1 for each case study.
-                                </p>
-                            ) : (
-                                <p className="text-xs text-rose-700 font-bold leading-relaxed">
-                                    ⚡ Your 20 free studies are finished. Every case study will charge <strong>৳1 for each case study</strong>.
-                                </p>
-                            )}
+                            <p className="text-xs text-purple-900 font-medium leading-relaxed">
+                                Free usage: <strong>{quota ? quota.used_this_month : 0} of 20 limit</strong>. After this, every case study will charge ৳1 for each case study.
+                            </p>
                         </div>
                         <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
                             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
-                            <p className="text-xs font-black text-slate-800">৳{walletBalance}</p>
+                            <p className="text-xs font-black text-slate-800">৳{quota ? Number(quota.wallet_balance).toFixed(2) : '0.00'}</p>
                         </div>
                     </div>
                 )}
