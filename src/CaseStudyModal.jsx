@@ -19,6 +19,8 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const [showPickerMenu, setShowPickerMenu] = useState(false);
 
     const recognitionRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
 
     useEffect(() => {
         fetchQuota();
@@ -120,58 +122,86 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         }
     };
 
-    const startRecording = () => {
+    const startRecording = async () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert('Speech recognition is not supported in this browser. Please use Google Chrome.');
-            return;
+
+        // 1. ANDROID / CHROME / DESKTOP (Live Speech-to-Text)
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => setIsRecording(true);
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    setChatInput(prev => prev ? `${prev} ${finalTranscript}` : finalTranscript);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                setIsRecording(false);
+            };
+
+            recognition.onend = () => setIsRecording(false);
+
+            try {
+                recognition.start();
+                recognitionRef.current = recognition;
+                return; // Stop here for Android
+            } catch (err) {
+                console.error('Recognition start error:', err);
+            }
         }
 
-        const recognition = new SpeechRecognition();
-        recognition.lang = language === 'bn' ? 'bn-BD' : 'en-US';
-
-        // --- FIXES HERE ---
-        recognition.continuous = true;       // Keeps recording active even if you pause
-        recognition.interimResults = true;   // Shows words as you speak them in real time
-        recognition.maxAlternatives = 1;
-
-        recognition.onstart = () => {
-            setIsRecording(true);
-        };
-
-        recognition.onresult = (event) => {
-            let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                }
-            }
-            if (finalTranscript) {
-                setChatInput(prev => prev ? `${prev} ${finalTranscript}` : finalTranscript);
-            }
-        };
-
-        recognition.onerror = (event) => {
-            console.error('Speech recognition error:', event.error);
-            setIsRecording(false);
-        };
-
-        recognition.onend = () => {
-            setIsRecording(false);
-        };
-
+        // 2. iPHONE / SAFARI FALLBACK (Audio File Recording)
         try {
-            recognition.start();
-            recognitionRef.current = recognition;
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Let the iPhone pick its preferred audio format natively
+            const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {};
+            mediaRecorderRef.current = new MediaRecorder(stream, options);
+            audioChunksRef.current = [];
+
+            mediaRecorderRef.current.ondataavailable = (e) => {
+                if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+
+            mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorderRef.current.mimeType });
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    // Instantly send the recorded iPhone voice note to the AI
+                    sendMessageToAI('', reader.result);
+                };
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
         } catch (err) {
-            console.error('Recognition start error:', err);
-            setIsRecording(false);
+            alert('Microphone access denied. Please check your browser permissions.');
+            console.error('Audio capture error:', err);
         }
     };
 
     const stopRecording = () => {
         if (recognitionRef.current && isRecording) {
-            recognitionRef.current.stop();
+            recognitionRef.current.stop(); // Stop Android speech
+            setIsRecording(false);
+        }
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop(); // Stop iPhone audio
             setIsRecording(false);
         }
     };
@@ -182,11 +212,11 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         sendMessageToAI(chatInput);
     };
 
-    const sendMessageToAI = async (textMsg) => {
+    const sendMessageToAI = async (textMsg, audioBase64 = '') => {
         const userMsg = {
             role: 'user',
-            text: textMsg,
-            isAudio: false
+            text: audioBase64 ? '🎤 Voice Message sent' : textMsg,
+            isAudio: !!audioBase64
         };
 
         if (!result) {
@@ -209,12 +239,18 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     previousAnalysis: result,
                     chatMessages,
                     newMessage: textMsg,
-                    newAudio: ''
+                    newAudio: audioBase64 // Sends the iPhone audio to the backend
                 })
             });
             const data = await res.json();
             if (data.success) {
                 setChatMessages(prev => [...prev, { role: 'model', text: data.reply }]);
+
+                // If a new discussion triggered a 1 TK charge, update the wallet balance in the UI
+                if (data.charged && onBalanceDeducted) {
+                    onBalanceDeducted();
+                }
+                fetchQuota(); // Always refresh to update the "Free scans remaining" number
             } else {
                 alert(data.message || 'Chat failed.');
             }
@@ -244,7 +280,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                         <div>
                             {quota.free_remaining > 0 ? (
                                 <span className="text-purple-800 font-semibold">
-                                    🎁 Free scans remaining this month: <strong>{quota.free_remaining}/10</strong>
+                                    🎁 Free scans remaining this month: <strong>{quota.free_remaining}/20</strong>
                                 </span>
                             ) : (
                                 <span className="text-amber-800 font-semibold">
