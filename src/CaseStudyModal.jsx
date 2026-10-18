@@ -301,28 +301,33 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     <button onClick={onClose} className="text-purple-200 hover:text-white text-2xl font-bold">&times;</button>
                 </div>
 
-                {quota && !result && (
-                    <div className="bg-purple-50 px-5 py-2.5 border-b border-purple-100 flex justify-between items-center text-xs">
-                        <div>
-                            {quota.free_remaining > 0 ? (
-                                <span className="text-purple-800 font-semibold">
-                                    🎁 Free scans remaining this month: <strong>{quota.free_remaining}/20</strong>
-                                </span>
-                            ) : (
-                                <span className="text-amber-800 font-semibold">
-                                    ⚡ Free quota used. Standard rate: <strong>৳1 / scan</strong>
-                                </span>
-                            )}
-                        </div>
-                        <div className="text-slate-600 font-mono text-[11px]">
-                            Balance: ৳{Number(quota.wallet_balance).toFixed(2)}
-                        </div>
-                    </div>
-                )}
-
                 <div className="p-5 overflow-y-auto space-y-4 flex-1">
                     {!result && (
                         <>
+                            {/* --- NEW QUOTA BANNER LOCATION --- */}
+                            {quota && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex justify-between items-center shadow-sm">
+                                    <div>
+                                        <p className="text-[10px] text-purple-600 font-black tracking-wider uppercase mb-0.5">Monthly Quota (20 Free)</p>
+                                        {quota.free_remaining > 0 ? (
+                                            <p className="text-xs text-purple-900 font-medium leading-relaxed">
+                                                🎁 You have <strong>{quota.free_remaining} free</strong> case studies remaining this month. <br/>
+                                                <span className="text-purple-700/80 text-[11px]">After your 20 free studies are used, it charges ৳1 per study.</span>
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-rose-700 font-bold leading-relaxed">
+                                                ⚡ Your 20 free case studies are over for this month.<br/>
+                                                <span className="text-rose-600/80 text-[11px]">A standard charge of ৳1 per case study will be deducted.</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
+                                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
+                                        <p className="text-xs font-black text-slate-800">৳{Number(quota.wallet_balance).toFixed(2)}</p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">
                                     Select Output Language (আউটপুট ভাষা)
@@ -449,7 +454,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                             value={chatInput}
                                             onChange={handleInputResize}
                                             onKeyDown={(e) => {
-                                                // Submit on Enter (but allow Shift+Enter for new line)
                                                 if (e.key === 'Enter' && !e.shiftKey) {
                                                     e.preventDefault();
                                                     handleTextSubmit(e);
@@ -520,20 +524,26 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                         {isRecording ? '⏹️' : '🎙️'}
                                     </button>
 
-                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-center bg-white border border-slate-200 rounded-xl shadow-sm p-1">
-                                        <input
-                                            type="text"
+                                    <form onSubmit={handleTextSubmit} className="flex gap-2 flex-1 items-end bg-white border border-slate-200 rounded-xl shadow-sm p-1.5">
+                                        <textarea
+                                            rows="1"
                                             value={chatInput}
-                                            onChange={e => setChatInput(e.target.value)}
+                                            onChange={handleInputResize}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleTextSubmit(e);
+                                                }
+                                            }}
                                             placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
-                                            className="flex-1 p-2 text-sm outline-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium"
+                                            className="flex-1 p-2 text-sm outline-none resize-none disabled:bg-transparent disabled:text-purple-700 disabled:font-medium overflow-y-auto min-h-[40px] max-h-[120px]"
                                             disabled={chatLoading || isRecording}
                                         />
 
                                         <button
                                             type="submit"
                                             disabled={!chatInput.trim() || chatLoading || isRecording}
-                                            className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50"
+                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition disabled:opacity-50 h-[40px]"
                                         >
                                             Send
                                         </button>
