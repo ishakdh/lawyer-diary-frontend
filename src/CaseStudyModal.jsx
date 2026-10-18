@@ -21,6 +21,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const recognitionRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
+    const originalTextRef = useRef('');
 
     useEffect(() => {
         fetchQuota();
@@ -133,27 +134,27 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
+            // SAVE the exact text that was in the chat box BEFORE recording started
+            originalTextRef.current = chatInput;
+
             recognition.onstart = () => setIsRecording(true);
 
-            let currentTranscript = '';
             recognition.onresult = (event) => {
-                let interimTranscript = '';
-                let finalTranscriptPart = '';
+                let finalStr = '';
+                let interimStr = '';
 
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                // FIX: Loop from 0 every time to rebuild the absolute truth from the browser
+                for (let i = 0; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalTranscriptPart += event.results[i][0].transcript;
+                        finalStr += event.results[i][0].transcript;
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        interimStr += event.results[i][0].transcript;
                     }
                 }
 
-                if (finalTranscriptPart) {
-                    currentTranscript += finalTranscriptPart + ' ';
-                }
-
-                // Set the input box to the final words + the current guessing words
-                setChatInput((currentTranscript + interimTranscript).trim());
+                // Combine the original text with the fresh, non-repeating speech string
+                const baseText = originalTextRef.current ? originalTextRef.current + ' ' : '';
+                setChatInput(baseText + finalStr + interimStr);
             };
 
             recognition.onerror = (event) => {
@@ -166,7 +167,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             try {
                 recognition.start();
                 recognitionRef.current = recognition;
-                return; // Stop here for Android
+                return;
             } catch (err) {
                 console.error('Recognition start error:', err);
             }
