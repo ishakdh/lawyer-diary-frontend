@@ -135,16 +135,25 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
             recognition.onstart = () => setIsRecording(true);
 
+            let currentTranscript = '';
             recognition.onresult = (event) => {
-                let finalTranscript = '';
+                let interimTranscript = '';
+                let finalTranscriptPart = '';
+
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
+                        finalTranscriptPart += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
                     }
                 }
-                if (finalTranscript) {
-                    setChatInput(prev => prev ? `${prev} ${finalTranscript}` : finalTranscript);
+
+                if (finalTranscriptPart) {
+                    currentTranscript += finalTranscriptPart + ' ';
                 }
+
+                // Set the input box to the final words + the current guessing words
+                setChatInput((currentTranscript + interimTranscript).trim());
             };
 
             recognition.onerror = (event) => {
