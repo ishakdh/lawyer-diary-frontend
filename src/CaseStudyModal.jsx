@@ -18,6 +18,10 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     // State for camera vs gallery popup choice menu
     const [showPickerMenu, setShowPickerMenu] = useState(false);
 
+    // Copy Feedback State
+    const [copiedIndex, setCopiedIndex] = useState(null);
+    const [copiedInsight, setCopiedInsight] = useState(false);
+
     const recognitionRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -286,6 +290,18 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         autoResizeTextarea();
     };
 
+    const copyToClipboard = (text, index = null) => {
+        navigator.clipboard.writeText(text).then(() => {
+            if (index !== null) {
+                setCopiedIndex(index);
+                setTimeout(() => setCopiedIndex(null), 2000);
+            } else {
+                setCopiedInsight(true);
+                setTimeout(() => setCopiedInsight(false), 2000);
+            }
+        });
+    };
+
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-50">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -419,7 +435,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                                 }
                                             }}
                                             placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
-                                            className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent"
+                                            className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent select-text"
                                             disabled={chatLoading || isRecording}
                                         />
 
@@ -438,11 +454,18 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
                     {result && (
                         <div className="flex flex-col md:flex-row gap-5 h-full min-h-[500px]">
+                            {/* Left Box: Case Insight */}
                             <div className="flex-1 flex flex-col bg-slate-50 border border-slate-200 rounded-xl p-4 md:w-1/2">
                                 <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-200 shrink-0">
                                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Case Insight</h4>
+                                    <button
+                                        onClick={() => copyToClipboard(result)}
+                                        className="text-[11px] font-bold text-purple-700 hover:bg-purple-100 px-2.5 py-1 rounded-md transition flex items-center gap-1"
+                                    >
+                                        <span>📋</span> {copiedInsight ? 'Copied!' : 'Copy'}
+                                    </button>
                                 </div>
-                                <div className="flex-1 text-xs text-slate-800 leading-relaxed whitespace-pre-wrap font-sans overflow-y-auto">
+                                <div className="flex-1 text-xs text-slate-800 leading-relaxed whitespace-pre-wrap font-sans overflow-y-auto select-text">
                                     {result}
                                 </div>
                                 <button onClick={() => setResult('')} className="mt-3 text-xs font-bold text-slate-500 hover:text-slate-800 text-center border-t pt-3">
@@ -450,6 +473,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                 </button>
                             </div>
 
+                            {/* Right Box: Chat Messages */}
                             <div className="flex-1 flex flex-col md:w-1/2">
                                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 shrink-0">
                                     Ask Follow-up Questions (Free)
@@ -457,10 +481,18 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
 
                                 <div className="flex-1 overflow-y-auto space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-3 mb-3 shadow-inner h-[250px] md:h-auto">
                                     {chatMessages.map((msg, i) => (
-                                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`p-2.5 rounded-xl max-w-[90%] text-xs whitespace-pre-wrap ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-sm leading-relaxed'}`}>
+                                        <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                            <div className={`p-2.5 rounded-xl max-w-[90%] text-xs whitespace-pre-wrap select-text ${msg.role === 'user' ? 'bg-purple-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-sm leading-relaxed'}`}>
                                                 {msg.text}
                                             </div>
+                                            {msg.role === 'model' && (
+                                                <button
+                                                    onClick={() => copyToClipboard(msg.text, i)}
+                                                    className="text-[10px] text-purple-600 hover:text-purple-800 font-bold mt-1 px-1 transition flex items-center gap-0.5"
+                                                >
+                                                    <span>📋</span> {copiedIndex === i ? 'Copied!' : 'Copy'}
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                     {chatLoading && (
@@ -496,7 +528,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                                                 }
                                             }}
                                             placeholder={isRecording ? "Listening to your voice..." : "Type or speak your question..."}
-                                            className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent"
+                                            className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent select-text"
                                             disabled={chatLoading || isRecording}
                                         />
 
