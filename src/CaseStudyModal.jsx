@@ -25,8 +25,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const recognitionRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
-    const finalTranscriptRef = useRef('');
-    const originalTextRef = useRef('');
     const textareaRef = useRef(null);
 
     useEffect(() => {
@@ -139,7 +137,9 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
-            originalTextRef.current = chatInput ? chatInput.trim() + ' ' : '';
+            // Capture whatever text is ALREADY in the box right now as our base string
+            const baseText = chatInput ? chatInput.trim() + ' ' : '';
+            let sessionTranscript = '';
             let lastProcessedIndex = -1;
 
             recognition.onstart = () => setIsRecording(true);
@@ -165,8 +165,13 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     }
                 }
 
-                const newText = (originalTextRef.current + finalStr + interimStr).trim();
-                setChatInput(newText);
+                if (finalStr) {
+                    sessionTranscript += finalStr;
+                }
+
+                // Combine base text + newly spoken transcript + current guessing words
+                const updatedText = (baseText + sessionTranscript + interimStr).trim();
+                setChatInput(updatedText);
                 autoResizeTextarea();
             };
 
@@ -318,25 +323,33 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                     <button onClick={onClose} className="text-purple-200 hover:text-white text-2xl font-bold">&times;</button>
                 </div>
 
-                {/* --- QUOTA BANNER PLACED PROMINENTLY AT THE TOP --- */}
-                {quota && !result && (
+                {/* --- PROMINENT QUOTA & PAID INSTRUCTION BANNER --- */}
+                {!result && (
                     <div className="bg-purple-50 border-b border-purple-200 px-5 py-3 flex justify-between items-center shrink-0">
                         <div>
-                            <p className="text-[10px] text-purple-700 font-black tracking-wider uppercase mb-0.5">Monthly Quota Status</p>
-                            {quota.free_remaining > 0 ? (
-                                <p className="text-xs text-purple-900 font-medium">
-                                    🎁 You have <strong>{quota.free_remaining}/20 free</strong> case studies remaining this month. (After 20, it charges ৳1 per study).
-                                </p>
+                            <p className="text-[10px] text-purple-700 font-black tracking-wider uppercase mb-0.5">Free Quota & Billing Information</p>
+                            {quota ? (
+                                quota.free_remaining > 0 ? (
+                                    <p className="text-xs text-purple-900 font-medium leading-relaxed">
+                                        🎁 You have <strong>{quota.free_remaining}/20 free</strong> case studies remaining this month.<br/>
+                                        <span className="text-[11px] text-purple-700">After 20 free case studies are exhausted, a standard charge of <strong>৳1 per study</strong> applies.</span>
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-rose-700 font-bold leading-relaxed">
+                                        ⚡ Your 20 free monthly case studies have been fully used.<br/>
+                                        <span className="text-[11px] text-rose-600">Standard charge of <strong>৳1 per study</strong> will be automatically deducted from your wallet.</span>
+                                    </p>
+                                )
                             ) : (
-                                <p className="text-xs text-rose-700 font-bold">
-                                    ⚡ 20 free studies used for this month. Standard charge: <strong>৳1 per study</strong>.
-                                </p>
+                                <p className="text-xs text-slate-500 animate-pulse">Loading quota details...</p>
                             )}
                         </div>
-                        <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
-                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
-                            <p className="text-xs font-black text-slate-800">৳{Number(quota.wallet_balance).toFixed(2)}</p>
-                        </div>
+                        {quota && (
+                            <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
+                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
+                                <p className="text-xs font-black text-slate-800">৳{Number(quota.wallet_balance).toFixed(2)}</p>
+                            </div>
+                        )}
                     </div>
                 )}
 
