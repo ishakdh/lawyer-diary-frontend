@@ -1236,6 +1236,7 @@ export default function Dashboard({ onLogout }) {
                 <CaseStudyModal
                     onClose={() => setShowCaseStudyModal(false)}
                     onBalanceDeducted={fetchWallet}
+                    currentWalletBalance={walletBalance}
                 />
             )}
             {/* Urgent Tomorrow Reminder Modal */}

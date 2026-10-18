@@ -41,7 +41,7 @@ const mergeSpeechChunks = (existing, incoming) => {
     return `${a} ${b}`;
 };
 
-export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
+export default function CaseStudyModal({ onClose, onBalanceDeducted, currentWalletBalance }) {
     const [images, setImages] = useState([]);
     const [language, setLanguage] = useState('bn');
     const [quota, setQuota] = useState(null);
@@ -432,7 +432,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                         <div className="bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm text-center shrink-0 ml-3">
                             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">Wallet</p>
                             <p className="text-xs font-black text-slate-800">
-                                ৳{quota && quota.wallet_balance !== undefined ? Number(quota.wallet_balance).toFixed(2) : '0.00'}
+                                ৳{currentWalletBalance ? Number(currentWalletBalance).toFixed(2) : '0.00'}
                             </p>
                         </div>
                     </div>
