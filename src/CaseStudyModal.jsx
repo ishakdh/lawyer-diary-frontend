@@ -95,9 +95,20 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         try {
             const token = localStorage.getItem('lawyer_token');
             const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
-            const res = await fetch(`${API_BASE}/api/case-study/quota`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+
+            // SMART FIX: Added timestamp (?t=) and strict no-cache headers
+            // so the mobile browser is FORCED to get the real database numbers.
+            const res = await fetch(`${API_BASE}/api/case-study/quota?t=${new Date().getTime()}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
+                cache: 'no-store'
             });
+
             const data = await res.json();
             if (data.success) setQuota(data);
         } catch (err) {
