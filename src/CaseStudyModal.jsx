@@ -135,36 +135,39 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
-            // Save any existing text before we start speaking
-            finalTranscriptRef.current = chatInput ? chatInput + ' ' : '';
-
-            // MAGIC FIX: This tracks the words so Android cannot duplicate them
-            let lastProcessedIndex = -1;
+            // Save any existing text before we start speaking so we don't erase it
+            originalTextRef.current = chatInput ? chatInput.trim() + ' ' : '';
 
             recognition.onstart = () => setIsRecording(true);
 
             recognition.onresult = (event) => {
-                let interimTranscript = '';
+                let finalStr = '';
+                let interimStr = '';
 
-                // In case Android silently resets the voice engine array
-                if (event.resultIndex <= lastProcessedIndex) {
-                    lastProcessedIndex = event.resultIndex - 1;
-                }
+                for (let i = 0; i < event.results.length; ++i) {
+                    let chunk = event.results[i][0].transcript;
 
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        // ONLY save this word if it hasn't been saved yet
-                        if (i > lastProcessedIndex) {
-                            finalTranscriptRef.current += event.results[i][0].transcript + ' ';
-                            lastProcessedIndex = i; // Mark this word as processed!
+                        // SMART FIX: Android Chrome often repeats the previous text in the new chunk (Cumulative Bug).
+                        // If the new chunk starts with the previous chunk, we strip the old words and only keep the new ones.
+                        if (i > 0 && event.results[i - 1].isFinal) {
+                            let prevChunk = event.results[i - 1][0].transcript;
+                            if (prevChunk.trim() && chunk.toLowerCase().trim().startsWith(prevChunk.toLowerCase().trim())) {
+                                // Extract only the newly spoken words
+                                const overlapIndex = chunk.toLowerCase().indexOf(prevChunk.toLowerCase().trim());
+                                if (overlapIndex !== -1) {
+                                    chunk = chunk.substring(overlapIndex + prevChunk.trim().length);
+                                }
+                            }
                         }
+                        finalStr += chunk;
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        interimStr += chunk;
                     }
                 }
 
-                // Instantly update the input box without duplicates
-                setChatInput((finalTranscriptRef.current + interimTranscript).trim());
+                // Combine what was there before + final spoken words + current guessing words safely
+                setChatInput(originalTextRef.current + finalStr + interimStr);
             };
 
             recognition.onerror = (event) => {
