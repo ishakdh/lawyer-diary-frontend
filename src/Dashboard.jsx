@@ -62,6 +62,8 @@ export default function Dashboard({ onLogout }) {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+    const [showStaffModal, setShowStaffModal] = useState(false);
+    const [staffForm, setStaffForm] = useState({ name: '', phone: '', password: '' });
     const API_BASE = import.meta.env.VITE_API_URL || 'https://server.lawyer.trvnx.com';
 
     const initialFormState = {
@@ -662,6 +664,12 @@ export default function Dashboard({ onLogout }) {
                                     className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-slate-50 transition border-b border-slate-100 flex items-center gap-2"
                                 >
                                     👤 My Profile
+                                </button>
+                                <button
+                                    onClick={() => { setShowStaffModal(true); setShowProfileMenu(false); }}
+                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-slate-50 transition border-b border-slate-100 flex items-center gap-2 text-indigo-700"
+                                >
+                                    👥 Add Staff
                                 </button>
                                 <button
                                     onClick={() => { setShowSubscriptionModal(true); setShowProfileMenu(false); }}
@@ -1325,6 +1333,71 @@ export default function Dashboard({ onLogout }) {
                                 3. Close
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Add Staff Modal */}
+            {showStaffModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 animate-in zoom-in-95">
+                        <div className="px-5 py-4 border-b border-slate-200 bg-slate-900 text-white flex justify-between items-center">
+                            <h3 className="text-sm font-bold flex items-center gap-2"><span>👥</span> Create Staff ID</h3>
+                            <button onClick={() => setShowStaffModal(false)} className="text-slate-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
+                        </div>
+
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setIsSubmitting(true);
+                            try {
+                                const token = localStorage.getItem('lawyer_token');
+                                const res = await fetch(`${API_BASE}/api/auth/add-staff`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                    body: JSON.stringify({
+                                        staff_name: staffForm.name,
+                                        staff_phone: staffForm.phone,
+                                        staff_password: staffForm.password
+                                    })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                    alert(data.message);
+                                    setShowStaffModal(false);
+                                    setStaffForm({ name: '', phone: '', password: '' });
+                                } else {
+                                    alert(data.message || 'Failed to create staff ID.');
+                                }
+                            } catch (err) {
+                                alert('Network error. Please try again.');
+                            }
+                            setIsSubmitting(false);
+                        }} className="p-5 space-y-4">
+                            <p className="text-xs text-slate-500 mb-2 leading-relaxed">
+                                Your junior or clerk can use these credentials to log in on their phone and manage this diary. They will not be able to change your main password.
+                            </p>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Staff Name</label>
+                                <input required type="text" placeholder="e.g. Rahim (Junior)" value={staffForm.name} onChange={e => setStaffForm({...staffForm, name: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600"/>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Staff Phone Number</label>
+                                <input required type="tel" placeholder="01XXXXXXXXX" value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600"/>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Set Password</label>
+                                <input required type="password" placeholder="Min 4 characters" value={staffForm.password} onChange={e => setStaffForm({...staffForm, password: e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600"/>
+                            </div>
+
+                            <div className="pt-2 flex justify-end gap-3">
+                                <button type="button" onClick={() => setShowStaffModal(false)} className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                                <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md w-full md:w-auto">
+                                    {isSubmitting ? 'Creating...' : 'Create ID'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
