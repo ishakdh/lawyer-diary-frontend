@@ -39,6 +39,9 @@ export default function Dashboard({ onLogout }) {
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
 
+    // --- NEW: Search State ---
+    const [searchQuery, setSearchQuery] = useState('');
+
     // Hearing Modal State
     const [hearingModalCase, setHearingModalCase] = useState(null);
     const [hearingNoteText, setHearingNoteText] = useState('');
@@ -564,6 +567,17 @@ export default function Dashboard({ onLogout }) {
     const unassignedCount = cases.filter(c => !c.next_hearing_date && !c.is_closed).length;
 
     const filteredCases = cases.filter(c => {
+        // --- NEW: Search Filter Logic ---
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            const matchesSearch =
+                (c.client_name && c.client_name.toLowerCase().includes(query)) ||
+                (c.client_phone && c.client_phone.toLowerCase().includes(query)) ||
+                (c.case_number && c.case_number.toLowerCase().includes(query));
+
+            if (!matchesSearch) return false;
+        }
+
         // When "Add Hearing Date" filter is active, only show open cases without a hearing date
         if (showUnassignedOnly) {
             return !c.next_hearing_date && !c.is_closed;
@@ -798,8 +812,34 @@ export default function Dashboard({ onLogout }) {
                             🖨️ Export
                         </button>
 
+                        {/* Spacer to push the search and date filters to the right on Desktop */}
+                        <div className="hidden md:block flex-1"></div>
+
+                        {/* NEW: Live Search Bar */}
+                        <div className="w-full md:w-auto mt-2 md:mt-0 relative">
+                            <input
+                                type="text"
+                                placeholder="Search client, phone, or case no..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setViewMode('list'); // Switch to list mode when searching
+                                }}
+                                className="w-full md:w-64 text-xs md:text-sm p-2 pl-8 rounded-lg border border-slate-300 bg-slate-50 outline-none focus:ring-2 focus:ring-blue-600 transition shadow-sm"
+                            />
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+
                         {/* Date to Date Filter (Wraps neatly on mobile) */}
-                        <div className="flex items-center gap-1 border border-slate-300 rounded-lg p-1 bg-slate-50 w-full md:w-auto md:ml-auto mt-1 md:mt-0">
+                        <div className="flex items-center gap-1 border border-slate-300 rounded-lg p-1 bg-slate-50 w-full md:w-auto mt-2 md:mt-0 shadow-sm">
                             <input
                                 type="date"
                                 value={dateRange.start}
