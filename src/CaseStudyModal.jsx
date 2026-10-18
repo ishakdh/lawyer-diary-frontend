@@ -21,6 +21,7 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
     const recognitionRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
+    const finalTranscriptRef = useRef('');
     const originalTextRef = useRef('');
 
     useEffect(() => {
@@ -134,27 +135,36 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
             recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
-            // SAVE the exact text that was in the chat box BEFORE recording started
-            originalTextRef.current = chatInput;
+            // Save any existing text before we start speaking
+            finalTranscriptRef.current = chatInput ? chatInput + ' ' : '';
+
+            // MAGIC FIX: This tracks the words so Android cannot duplicate them
+            let lastProcessedIndex = -1;
 
             recognition.onstart = () => setIsRecording(true);
 
             recognition.onresult = (event) => {
-                let finalStr = '';
-                let interimStr = '';
+                let interimTranscript = '';
 
-                // FIX: Loop from 0 every time to rebuild the absolute truth from the browser
-                for (let i = 0; i < event.results.length; ++i) {
+                // In case Android silently resets the voice engine array
+                if (event.resultIndex <= lastProcessedIndex) {
+                    lastProcessedIndex = event.resultIndex - 1;
+                }
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalStr += event.results[i][0].transcript;
+                        // ONLY save this word if it hasn't been saved yet
+                        if (i > lastProcessedIndex) {
+                            finalTranscriptRef.current += event.results[i][0].transcript + ' ';
+                            lastProcessedIndex = i; // Mark this word as processed!
+                        }
                     } else {
-                        interimStr += event.results[i][0].transcript;
+                        interimTranscript += event.results[i][0].transcript;
                     }
                 }
 
-                // Combine the original text with the fresh, non-repeating speech string
-                const baseText = originalTextRef.current ? originalTextRef.current + ' ' : '';
-                setChatInput(baseText + finalStr + interimStr);
+                // Instantly update the input box without duplicates
+                setChatInput((finalTranscriptRef.current + interimTranscript).trim());
             };
 
             recognition.onerror = (event) => {
@@ -176,8 +186,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
         // 2. iPHONE / SAFARI FALLBACK (Audio File Recording)
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-            // Let the iPhone pick its preferred audio format natively
             const options = MediaRecorder.isTypeSupported('audio/webm') ? { mimeType: 'audio/webm' } : {};
             mediaRecorderRef.current = new MediaRecorder(stream, options);
             audioChunksRef.current = [];
@@ -191,7 +199,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted }) {
                 const reader = new FileReader();
                 reader.readAsDataURL(audioBlob);
                 reader.onloadend = () => {
-                    // Instantly send the recorded iPhone voice note to the AI
                     sendMessageToAI('', reader.result);
                 };
                 stream.getTracks().forEach(track => track.stop());
