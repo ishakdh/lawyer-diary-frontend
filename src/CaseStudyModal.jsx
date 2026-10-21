@@ -526,12 +526,6 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted, currentWall
                                             rows="1"
                                             value={chatInput}
                                             onChange={handleInputChange}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    handleTextSubmit(e);
-                                                }
-                                            }}
                                             placeholder={isRecording ? "Listening... (Tap ⏹️ when done)" : "Type or speak your question..."}
                                             className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent select-text"
                                             disabled={chatLoading}
@@ -619,17 +613,10 @@ export default function CaseStudyModal({ onClose, onBalanceDeducted, currentWall
                                             rows="1"
                                             value={chatInput}
                                             onChange={handleInputChange}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    handleTextSubmit(e);
-                                                }
-                                            }}
                                             placeholder={isRecording ? "Listening... (Tap ⏹️ when done)" : "Type or speak your question..."}
                                             className="flex-1 px-2 py-1 text-sm outline-none resize-none overflow-y-auto max-h-[140px] leading-relaxed bg-transparent select-text"
                                             disabled={chatLoading}
                                         />
-
                                         <button
                                             type="submit"
                                             disabled={!chatInput.trim() || chatLoading}
